@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 
 	"github.com/pet2cattle/kubectl-eks/pkg/awsconfig"
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
@@ -19,25 +20,29 @@ type ClusterInfo struct {
 	Region       string
 	AWSProfile   string
 	AWSAccountID string
+	Status       string
+	Version      string
+	Arn          string
 }
 
-type KubeCtlEksConfig struct {
-	Clusters map[string]ClusterInfo
+type KubeCtlEksCache struct {
+	ClusterByARN map[string]ClusterInfo
+	ClusterList  map[string]map[string][]ClusterInfo
 }
 
 var KubernetesConfigFlags *genericclioptions.ConfigFlags
 
 var HomeDir string
-var ConfigData *KubeCtlEksConfig = nil
+var CachedData *KubeCtlEksCache = nil
 
-func loadConfig() {
+func loadCacheFromDisk() {
 	// Load configuration from file
-	configFile := HomeDir + "/.kube/kubectl-eks-config"
+	configFile := HomeDir + "/.kube/.kubectl-eks-cache"
 	configData, err := os.ReadFile(configFile)
 	if err == nil {
 		// load json data into ConfigData
-		ConfigData = &KubeCtlEksConfig{}
-		err = json.Unmarshal(configData, ConfigData)
+		CachedData = &KubeCtlEksCache{}
+		err = json.Unmarshal(configData, CachedData)
 		if err != nil {
 			fmt.Println("Error loading configuration file")
 			os.Exit(1)
@@ -45,10 +50,10 @@ func loadConfig() {
 	}
 }
 
-func saveConfig() {
+func saveCacheToDisk() {
 	// Save configuration to file
-	configFile := HomeDir + "/.kube/kubectl-eks-config"
-	configData, err := json.Marshal(ConfigData)
+	configFile := HomeDir + "/.kube/.kubectl-eks-cache"
+	configData, err := json.Marshal(CachedData)
 	if err != nil {
 		fmt.Println("Error saving configuration file")
 		os.Exit(1)
@@ -62,16 +67,24 @@ func saveConfig() {
 
 // printResults prints results in a kubectl-style table format
 func PrintClusters(clusterInfos ...ClusterInfo) {
+	// Sort the clusterInfos by ClusterName (you can customize the field for sorting)
+	sort.Slice(clusterInfos, func(i, j int) bool {
+		return clusterInfos[i].AWSProfile < clusterInfos[j].AWSProfile
+	})
+
 	// Create a table printer
 	printer := printers.NewTablePrinter(printers.PrintOptions{})
 
 	// Create a Table object
 	table := &v1.Table{
 		ColumnDefinitions: []v1.TableColumnDefinition{
-			{Name: "CLUSTER NAME", Type: "string"},
+			// {Name: "AWS ACCOUNT ID", Type: "string"},
 			{Name: "AWS PROFILE", Type: "string"},
-			{Name: "AWS ACCOUNT ID", Type: "string"},
 			{Name: "AWS REGION", Type: "string"},
+			{Name: "CLUSTER NAME", Type: "string"},
+			{Name: "STATUS", Type: "string"},
+			{Name: "VERSION", Type: "string"},
+			{Name: "ARN", Type: "string"},
 		},
 	}
 
@@ -79,10 +92,13 @@ func PrintClusters(clusterInfos ...ClusterInfo) {
 	for _, clusterInfo := range clusterInfos {
 		table.Rows = append(table.Rows, v1.TableRow{
 			Cells: []interface{}{
-				clusterInfo.ClusterName,
+				// clusterInfo.AWSAccountID,
 				clusterInfo.AWSProfile,
-				clusterInfo.AWSAccountID,
 				clusterInfo.Region,
+				clusterInfo.ClusterName,
+				clusterInfo.Status,
+				clusterInfo.Version,
+				clusterInfo.Arn,
 			},
 		})
 	}
@@ -95,11 +111,80 @@ func PrintClusters(clusterInfos ...ClusterInfo) {
 	}
 }
 
+func loadClusterByArn(clusterArn string) *ClusterInfo {
+
+	clusterInfo := ClusterInfo{}
+
+	// check if it is an ARN
+	arnRegex := `^arn:aws:eks:([a-z0-9-]+):(\d{12}):cluster/([a-zA-Z0-9-]+)$`
+	re := regexp.MustCompile(arnRegex)
+
+	matches := re.FindStringSubmatch(clusterArn)
+	if matches == nil {
+		return nil
+	}
+
+	// search for an AWS profile that matches the account ID, region and cluster name
+	awsProfiles := awsconfig.GetAWSProfilesWithEKSHints()
+	foundAwsProfile := ""
+	for _, profileDetails := range awsProfiles {
+		for _, hintRegion := range profileDetails.HintEKSRegions {
+			// aws eks list-clusters --region <region> --profile <profile>
+			clusters, err := eks.GetClusters(profileDetails.Name, hintRegion)
+			if err != nil {
+				continue
+			}
+
+			for _, cluster := range clusters {
+				if cluster != nil {
+					if *cluster == matches[3] {
+						foundAwsProfile = profileDetails.Name
+					}
+				}
+			}
+		}
+	}
+
+	if foundAwsProfile == "" {
+		foundAwsProfile = "-"
+	}
+
+	// create clusterInfo
+	clusterInfo = ClusterInfo{ClusterName: matches[3], Region: matches[1], AWSProfile: foundAwsProfile, AWSAccountID: matches[2]}
+
+	clusterDesc, err := eks.DescribeCluster(clusterInfo.AWSProfile, clusterInfo.Region, clusterInfo.ClusterName)
+	if err != nil || clusterDesc == nil {
+		fmt.Fprintf(os.Stderr, "Error describing cluster %s: %v\n", clusterInfo.ClusterName, err.Error())
+	} else {
+		clusterInfo.Status = *clusterDesc.Status
+		clusterInfo.Version = *clusterDesc.Version
+		clusterInfo.Arn = *clusterDesc.Arn
+	}
+
+	if CachedData == nil {
+		CachedData = &KubeCtlEksCache{}
+	}
+
+	if CachedData.ClusterByARN == nil {
+		CachedData.ClusterByARN = make(map[string]ClusterInfo)
+	}
+
+	// save update loaded configuration
+	CachedData.ClusterByARN[clusterArn] = clusterInfo
+
+	return &clusterInfo
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "kubectl-eks",
 	Short: "A kubectl plugin for Amazon EKS",
 	Long:  `A kubectl plugin for Amazon EKS`,
 	Run: func(cmd *cobra.Command, args []string) {
+		refresh, err := cmd.Flags().GetBool("refresh")
+		if err != nil {
+			refresh = false
+		}
+
 		// Load Kubernetes configuration
 		config, err := KubernetesConfigFlags.ToRawKubeConfigLoader().RawConfig()
 		if err != nil {
@@ -121,56 +206,27 @@ var rootCmd = &cobra.Command{
 		clusterName := contextDetails.Cluster
 		// fmt.Printf("Cluster name: %s\n", clusterName)
 
-		loadConfig()
-		if ConfigData == nil {
-			ConfigData = &KubeCtlEksConfig{Clusters: make(map[string]ClusterInfo)}
+		loadCacheFromDisk()
+		if CachedData == nil {
+			CachedData = &KubeCtlEksCache{
+				ClusterByARN: make(map[string]ClusterInfo),
+				ClusterList:  make(map[string]map[string][]ClusterInfo),
+			}
 		}
 
-		clusterInfo, exists := ConfigData.Clusters[clusterName]
-		if !exists {
-			// check if it is an ARN
-			arnRegex := `^arn:aws:eks:([a-z0-9-]+):(\d{12}):cluster/([a-zA-Z0-9-]+)$`
-			re := regexp.MustCompile(arnRegex)
+		clusterInfo, exists := CachedData.ClusterByARN[clusterName]
+		if !exists || refresh {
+			foundClusterInfo := loadClusterByArn(clusterName)
 
-			matches := re.FindStringSubmatch(clusterName)
-			if matches == nil {
+			if foundClusterInfo == nil {
 				fmt.Println("Current cluster is not an EKS cluster")
 				os.Exit(1)
+			} else {
+				clusterInfo = *foundClusterInfo
 			}
-
-			// search for an AWS profile that matches the account ID, region and cluster name
-			awsProfiles := awsconfig.GetAWSProfilesWithEKSHints()
-			foundAwsProfile := ""
-			for _, profileDetails := range awsProfiles {
-				for _, hintRegion := range profileDetails.HintEKSRegions {
-					// aws eks list-clusters --region <region> --profile <profile>
-					clusters, err := eks.GetClusters(profileDetails.Name, hintRegion)
-					if err != nil {
-						continue
-					}
-
-					for _, cluster := range clusters {
-						if cluster != nil {
-							if *cluster == matches[3] {
-								foundAwsProfile = profileDetails.Name
-							}
-						}
-					}
-				}
-			}
-
-			if foundAwsProfile == "" {
-				foundAwsProfile = "-"
-			}
-
-			// create clusterInfo
-			clusterInfo = ClusterInfo{ClusterName: matches[3], Region: matches[1], AWSProfile: foundAwsProfile, AWSAccountID: matches[2]}
-
-			// save update loaded configuration
-			ConfigData.Clusters[clusterName] = clusterInfo
 
 			// save data to configuration
-			saveConfig()
+			saveCacheToDisk()
 		}
 
 		PrintClusters(clusterInfo)
@@ -188,6 +244,8 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.Flags().BoolP("refresh", "u", false, "Do not use cached data, refresh from AWS")
+
 	KubernetesConfigFlags = genericclioptions.NewConfigFlags(true)
 	KubernetesConfigFlags.AddFlags(rootCmd.PersistentFlags())
 }

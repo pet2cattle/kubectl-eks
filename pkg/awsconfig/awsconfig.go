@@ -10,7 +10,7 @@ import (
 
 type AWSProfile struct {
 	Name           string
-	Region         string
+	DefaultRegion  string
 	HintEKSRegions []string
 }
 
@@ -90,7 +90,7 @@ func loadAWSConfig() {
 
 		if strings.TrimSpace(parts[0]) == "region" {
 			currentProfileDetails := awsConfig.Profiles[currentProfile]
-			currentProfileDetails.Region = strings.TrimSpace(parts[1])
+			currentProfileDetails.DefaultRegion = strings.TrimSpace(parts[1])
 			awsConfig.Profiles[currentProfile] = currentProfileDetails
 		}
 	}
@@ -103,7 +103,7 @@ func GetAWSProfilesWithEKSHints() []AWSProfile {
 		loadAWSConfig()
 	}
 
-	fmt.Printf("ConfigData: %+v\n", ConfigData)
+	// fmt.Printf("ConfigData: %+v\n", ConfigData)
 
 	profiles := []AWSProfile{}
 	for _, profileDetails := range ConfigData.Profiles {

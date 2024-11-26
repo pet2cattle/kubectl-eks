@@ -1,0 +1,67 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+'
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@a12a3943b4bdde767164f792f33f40b04645d846
+
+      - name: Set up Go
+        uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab
+        with:
+          go-version: 1.23.x
+
+      - name: Are we releasing?
+        id: vars
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            echo "RELEASE - found TAG"
+            echo "release=TRUE" >> $GITHUB_OUTPUT
+          else
+            echo "NOT releasing, no tag found"
+            echo "release=FALSE" >> $GITHUB_OUTPUT
+          fi
+
+      # snapshot build for non-release
+
+      - name: Test build GoReleaser
+        if: ${{ steps.vars.outputs.release == 'FALSE' }}
+        uses: goreleaser/goreleaser-action@336e29918d653399e599bfca99fadc1d7ffbc9f7 # v4.3.0
+        with:
+          distribution: goreleaser
+          version: v1.19.2
+          args: -f .goreleaser.yaml --snapshot --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run GoReleaser
+        if: ${{ steps.vars.outputs.release == 'TRUE' }}
+        uses: goreleaser/goreleaser-action@336e29918d653399e599bfca99fadc1d7ffbc9f7 # v4.3.0
+        with:
+          distribution: goreleaser
+          version: v1.19.2
+          args: -f .goreleaser.yaml release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List files
+        if: ${{ steps.vars.outputs.release == 'FALSE' }}
+        run: ls -la build
+
+      - name: Upload assets
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        if: ${{ steps.vars.outputs.release == 'TRUE' }}
+        with:
+          name: kubectl-eks
+          path: build/kubectl-eks_*
+          if-no-files-found: error
