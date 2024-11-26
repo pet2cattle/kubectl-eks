@@ -63,5 +63,5 @@ jobs:
         if: ${{ steps.vars.outputs.release == 'TRUE' }}
         with:
           name: kubectl-eks
-          path: build/kubectl-eks_*
+          path: dist/kubectl-eks_*
           if-no-files-found: error
