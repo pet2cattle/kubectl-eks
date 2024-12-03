@@ -30,6 +30,11 @@ var listCmd = &cobra.Command{
 			region = ""
 		}
 
+		version, err := cmd.Flags().GetString("version")
+		if err != nil {
+			version = ""
+		}
+
 		loadCacheFromDisk()
 		if CachedData == nil {
 			CachedData = &KubeCtlEksCache{
@@ -80,7 +85,15 @@ var listCmd = &cobra.Command{
 				if !exists {
 					fmt.Fprintf(os.Stderr, "Unable to load clusters using profile: %s region: %s\n", profileDetails.Name, hintRegion)
 				} else {
-					clusterList = append(clusterList, currentClusterList...)
+					if version == "" {
+						clusterList = append(clusterList, currentClusterList...)
+					} else {
+						for _, cluster := range currentClusterList {
+							if cluster.Version == version {
+								clusterList = append(clusterList, cluster)
+							}
+						}
+					}
 				}
 
 			}
@@ -150,6 +163,7 @@ func init() {
 	listCmd.Flags().BoolP("refresh", "u", false, "Refresh data from AWS")
 	listCmd.Flags().StringP("profile", "p", "", "AWS profile to use")
 	listCmd.Flags().StringP("region", "r", "", "AWS region to use")
+	listCmd.Flags().StringP("version", "v", "", "Filter by EKS version")
 
 	rootCmd.AddCommand(listCmd)
 }
