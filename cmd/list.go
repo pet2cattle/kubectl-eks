@@ -106,7 +106,7 @@ var listCmd = &cobra.Command{
 }
 
 func loadClusters(profile, region string) {
-	fmt.Printf("Loading clusters using profile: %s region: %s\n", profile, region)
+	// fmt.Printf("Loading clusters using profile: %s region: %s\n", profile, region)
 
 	// Get the list of clusters
 	clusters, err := eks.GetClusters(profile, region)
@@ -153,7 +153,7 @@ func loadClusters(profile, region string) {
 			CachedData.ClusterList[profile][region] = []ClusterInfo{}
 		}
 
-		fmt.Printf("Adding cluster %s to profile %s and region %s\n", clusterData.ClusterName, profile, region)
+		// fmt.Printf("Adding cluster %s to profile %s and region %s\n", clusterData.ClusterName, profile, region)
 		CachedData.ClusterList[profile][region] = append(CachedData.ClusterList[profile][region], clusterData)
 	}
 

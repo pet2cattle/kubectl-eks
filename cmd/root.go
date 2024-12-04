@@ -9,6 +9,7 @@ import (
 
 	"github.com/pet2cattle/kubectl-eks/pkg/awsconfig"
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
+	"github.com/pet2cattle/kubectl-eks/pkg/sts"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -128,7 +129,20 @@ func loadClusterByArn(clusterArn string) *ClusterInfo {
 	awsProfiles := awsconfig.GetAWSProfilesWithEKSHints()
 	foundAwsProfile := ""
 	for _, profileDetails := range awsProfiles {
+		accountID, err := sts.GetAccountID(profileDetails.Name, matches[1])
+		if err != nil {
+			continue
+		}
+
+		if accountID != matches[2] {
+			continue
+		}
+
 		for _, hintRegion := range profileDetails.HintEKSRegions {
+			if hintRegion != matches[1] {
+				continue
+			}
+
 			// aws eks list-clusters --region <region> --profile <profile>
 			clusters, err := eks.GetClusters(profileDetails.Name, hintRegion)
 			if err != nil {
@@ -203,8 +217,7 @@ var rootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		clusterName := contextDetails.Cluster
-		// fmt.Printf("Cluster name: %s\n", clusterName)
+		clusterArn := contextDetails.Cluster
 
 		loadCacheFromDisk()
 		if CachedData == nil {
@@ -214,9 +227,9 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		clusterInfo, exists := CachedData.ClusterByARN[clusterName]
+		clusterInfo, exists := CachedData.ClusterByARN[clusterArn]
 		if !exists || refresh {
-			foundClusterInfo := loadClusterByArn(clusterName)
+			foundClusterInfo := loadClusterByArn(clusterArn)
 
 			if foundClusterInfo == nil {
 				fmt.Println("Current cluster is not an EKS cluster")
@@ -224,12 +237,32 @@ var rootCmd = &cobra.Command{
 			} else {
 				clusterInfo = *foundClusterInfo
 			}
-
-			// save data to configuration
-			saveCacheToDisk()
 		}
 
-		PrintClusters(clusterInfo)
+		// validate cached data, if invalid, refresh
+		if clusterInfo.Arn != clusterArn {
+			CachedData = &KubeCtlEksCache{
+				ClusterByARN: make(map[string]ClusterInfo),
+				ClusterList:  make(map[string]map[string][]ClusterInfo),
+			}
+			foundClusterInfo := loadClusterByArn(clusterArn)
+			if foundClusterInfo == nil {
+				fmt.Println("Current cluster is not an EKS cluster")
+				os.Exit(1)
+			} else {
+				clusterInfo = *foundClusterInfo
+			}
+		}
+
+		if clusterInfo.Arn != clusterArn {
+			fmt.Printf("%s\n", clusterArn)
+		} else {
+			PrintClusters(clusterInfo)
+		}
+
+		// save data to configuration
+		saveCacheToDisk()
+
 		os.Exit(0)
 	},
 }

@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"regexp"
+	"strings"
 
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
 	"github.com/spf13/cobra"
@@ -16,12 +19,21 @@ var useCmd = &cobra.Command{
 			fmt.Printf("Usage: %s use <cluster-arn>\n", cmd.Root().Name())
 			return
 		}
+		clusterArn := strings.TrimSpace(args[0])
 
-		loadCacheFromDisk()
+		// check if it is an ARN
+		arnRegex := `^arn:aws:eks:([a-z0-9-]+):(\d{12}):cluster/([a-zA-Z0-9-]+)$`
+		re := regexp.MustCompile(arnRegex)
 
-		clusterARN := args[0]
+		matches := re.FindStringSubmatch(clusterArn)
+		if matches == nil {
+			fmt.Printf("Invalid cluster ARN: %q\n", clusterArn)
+			os.Exit(1)
+		}
 
-		clusterInfo := loadClusterByArn(clusterARN)
+		clusterInfo := loadClusterByArn(clusterArn)
+
+		// clusterInfo := loadClusterByArn(clusterARN)
 		if clusterInfo == nil {
 			fmt.Println("Cluster not found")
 			return
