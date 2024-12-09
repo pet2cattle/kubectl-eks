@@ -11,6 +11,7 @@ import (
 type EKSUpdateInfo struct {
 	Type   string
 	Status string
+	Errors []string
 }
 
 func GetEKSUpdates(profile, region, clusterName string) ([]EKSUpdateInfo, error) {
@@ -51,6 +52,16 @@ func GetEKSUpdates(profile, region, clusterName string) ([]EKSUpdateInfo, error)
 			newUpdate := EKSUpdateInfo{
 				Type:   *updateDesc.Update.Type,
 				Status: *updateDesc.Update.Status,
+			}
+
+			if len(updateDesc.Update.Errors) > 0 {
+				for _, err := range updateDesc.Update.Errors {
+					if err != nil {
+						if err.ErrorMessage != nil {
+							newUpdate.Errors = append(newUpdate.Errors, *err.ErrorMessage)
+						}
+					}
+				}
 			}
 
 			if len(newUpdate.Status) == len(newUpdate.Type) && len(newUpdate.Status) == 0 {

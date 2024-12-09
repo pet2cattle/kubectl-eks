@@ -92,6 +92,7 @@ func PrintUpdates(updateList ...eks.EKSUpdateInfo) {
 		ColumnDefinitions: []v1.TableColumnDefinition{
 			{Name: "TYPE", Type: "string"},
 			{Name: "STATUS", Type: "string"},
+			{Name: "ERRORS", Type: "string"},
 		},
 	}
 
@@ -101,6 +102,7 @@ func PrintUpdates(updateList ...eks.EKSUpdateInfo) {
 			Cells: []interface{}{
 				eachUpdate.Type,
 				eachUpdate.Status,
+				strings.Join(eachUpdate.Errors, ", "),
 			},
 		})
 	}
