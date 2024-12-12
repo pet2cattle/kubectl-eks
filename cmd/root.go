@@ -24,6 +24,7 @@ type ClusterInfo struct {
 	Status       string
 	Version      string
 	Arn          string
+	CreatedAt    string
 }
 
 type KubeCtlEksCache struct {
@@ -85,6 +86,7 @@ func PrintClusters(clusterInfos ...ClusterInfo) {
 			{Name: "CLUSTER NAME", Type: "string"},
 			{Name: "STATUS", Type: "string"},
 			{Name: "VERSION", Type: "string"},
+			{Name: "CREATED", Type: "string"},
 			{Name: "ARN", Type: "string"},
 		},
 	}
@@ -99,6 +101,7 @@ func PrintClusters(clusterInfos ...ClusterInfo) {
 				clusterInfo.ClusterName,
 				clusterInfo.Status,
 				clusterInfo.Version,
+				clusterInfo.CreatedAt,
 				clusterInfo.Arn,
 			},
 		})
@@ -173,6 +176,7 @@ func loadClusterByArn(clusterArn string) *ClusterInfo {
 		clusterInfo.Status = *clusterDesc.Status
 		clusterInfo.Version = *clusterDesc.Version
 		clusterInfo.Arn = *clusterDesc.Arn
+		clusterInfo.CreatedAt = clusterDesc.CreatedAt.Format("2006-01-02 15:04:05")
 	}
 
 	if CachedData == nil {

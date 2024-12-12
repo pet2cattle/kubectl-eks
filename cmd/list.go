@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/pet2cattle/kubectl-eks/pkg/awsconfig"
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
@@ -23,6 +24,16 @@ var listCmd = &cobra.Command{
 		profile, err := cmd.Flags().GetString("profile")
 		if err != nil {
 			profile = ""
+		}
+
+		profile_contains, err := cmd.Flags().GetString("profile-contains")
+		if err != nil {
+			profile_contains = ""
+		}
+
+		name_contains, err := cmd.Flags().GetString("name-contains")
+		if err != nil {
+			name_contains = ""
 		}
 
 		region, err := cmd.Flags().GetString("region")
@@ -52,6 +63,9 @@ var listCmd = &cobra.Command{
 		awsProfiles := awsconfig.GetAWSProfilesWithEKSHints()
 		for _, profileDetails := range awsProfiles {
 			if profile != "" && profile != profileDetails.Name {
+				continue
+			}
+			if profile_contains != "" && !strings.Contains(profileDetails.Name, profile_contains) {
 				continue
 			}
 			for _, hintRegion := range profileDetails.HintEKSRegions {
@@ -85,11 +99,30 @@ var listCmd = &cobra.Command{
 				if !exists {
 					fmt.Fprintf(os.Stderr, "Unable to load clusters using profile: %s region: %s\n", profileDetails.Name, hintRegion)
 				} else {
-					if version == "" {
+					if version == "" && name_contains == "" {
 						clusterList = append(clusterList, currentClusterList...)
 					} else {
 						for _, cluster := range currentClusterList {
-							if cluster.Version == version {
+							// checking filter criteria
+							shouldAdd := false
+
+							if version != "" {
+								if cluster.Version == version {
+									shouldAdd = true
+								}
+							}
+
+							if name_contains != "" {
+								if strings.Contains(cluster.ClusterName, name_contains) {
+									shouldAdd = true
+								} else {
+									// resetting shouldAdd to false if name_contains is set and the cluster name does not contain the string
+									shouldAdd = false
+								}
+							}
+
+							// only add the cluster if it meets the criteria
+							if shouldAdd {
 								clusterList = append(clusterList, cluster)
 							}
 						}
@@ -139,6 +172,7 @@ func loadClusters(profile, region string) {
 			clusterData.Status = *clusterInfo.Status
 			clusterData.Version = *clusterInfo.Version
 			clusterData.Arn = *clusterInfo.Arn
+			clusterData.CreatedAt = clusterInfo.CreatedAt.Format("2006-01-02 15:04:05")
 		}
 
 		// CachedData.ClusterInfo[clusterName] = clusterInfo
@@ -162,6 +196,8 @@ func loadClusters(profile, region string) {
 func init() {
 	listCmd.Flags().BoolP("refresh", "u", false, "Refresh data from AWS")
 	listCmd.Flags().StringP("profile", "p", "", "AWS profile to use")
+	listCmd.Flags().StringP("profile-contains", "q", "", "AWS profile contains string")
+	listCmd.Flags().StringP("name-contains", "c", "", "Cluster name contains string")
 	listCmd.Flags().StringP("region", "r", "", "AWS region to use")
 	listCmd.Flags().StringP("version", "v", "", "Filter by EKS version")
 
