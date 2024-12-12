@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pet2cattle/kubectl-eks/pkg/ec2"
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,15 +67,71 @@ var nodegroupsCmd = &cobra.Command{
 			return
 		}
 
-		clusterNGList, err := eks.GetEKSNodeGroups(clusterInfo.AWSProfile, clusterInfo.Region, clusterInfo.ClusterName)
-
+		ami, err := cmd.Flags().GetString("ami")
 		if err != nil {
-			fmt.Printf("Error listing nodegroups: %s\n", err.Error())
-			return
+			ami = ""
 		}
 
-		PrintNodeGroup(clusterNGList...)
+		if ami != "" {
+			amiInfo, err := ec2.GetAMIInfo(clusterInfo.AWSProfile, clusterInfo.Region, ami)
+			if err != nil {
+				fmt.Printf("Error getting AMI info: %s\n", err.Error())
+				os.Exit(1)
+			}
+
+			PrintAMIs(*amiInfo)
+
+		} else {
+			clusterNGList, err := eks.GetEKSNodeGroups(clusterInfo.AWSProfile, clusterInfo.Region, clusterInfo.ClusterName)
+
+			if err != nil {
+				fmt.Printf("Error listing nodegroups: %s\n", err.Error())
+				return
+			}
+
+			PrintNodeGroup(clusterNGList...)
+		}
 	},
+}
+
+// printResults prints results in a kubectl-style table format
+func PrintAMIs(amiInfos ...ec2.AMIInfo) {
+	// Sort the clusterInfos by ClusterName (you can customize the field for sorting)
+	sort.Slice(amiInfos, func(i, j int) bool {
+		return amiInfos[i].Name < amiInfos[j].Name
+	})
+
+	// Create a table printer
+	printer := printers.NewTablePrinter(printers.PrintOptions{})
+
+	// Create a Table object
+	table := &v1.Table{
+		ColumnDefinitions: []v1.TableColumnDefinition{
+			{Name: "NAME", Type: "string"},
+			{Name: "ARCHITECTURE", Type: "string"},
+			{Name: "STATE", Type: "string"},
+			{Name: "DEPRECATION TIME", Type: "string"},
+		},
+	}
+
+	// Populate rows with data from the variadic ClusterInfo
+	for _, amiInfo := range amiInfos {
+		table.Rows = append(table.Rows, v1.TableRow{
+			Cells: []interface{}{
+				amiInfo.Name,
+				amiInfo.Architecture,
+				amiInfo.State,
+				amiInfo.DeprecationTime,
+			},
+		})
+	}
+
+	// Print the table
+	err := printer.PrintObj(table, os.Stdout)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func PrintNodeGroup(ngInfo ...eks.EKSNodeGroupInfo) {
@@ -129,5 +186,6 @@ func PrintNodeGroup(ngInfo ...eks.EKSNodeGroupInfo) {
 }
 
 func init() {
+	nodegroupsCmd.Flags().StringP("ami", "a", "", "Describe AMI used by the nodegroup")
 	rootCmd.AddCommand(nodegroupsCmd)
 }
