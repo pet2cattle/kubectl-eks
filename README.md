@@ -64,7 +64,7 @@ Example output:
 
 ```
 $ kubectl eks
-AWS PROFILE             AWS REGION   CLUSTER NAME         STATUS   VERSION   CREATED   ARN
+AWS PROFILE             AWS REGION   CLUSTER NAME         STATUS   VERSION   CREATED               ARN
 profile-1               us-west-2    cluster-1            ACTIVE   1.29      2024-06-21 19:21:40   arn:aws:eks:us-west-2:123456789123:cluster/cluster-1
 ```
 
