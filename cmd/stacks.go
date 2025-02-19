@@ -138,5 +138,6 @@ func PrintStacks(stackList ...cf.StackInfo) {
 
 func init() {
 	stacksCmd.Flags().String("name", "", "Search for a specific stack name")
+	//TODO: filter by status
 	rootCmd.AddCommand(stacksCmd)
 }
