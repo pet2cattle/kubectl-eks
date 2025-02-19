@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.23.4
 
 require (
-	github.com/aws/aws-sdk-go v1.55.5
+	github.com/aws/aws-sdk-go v1.55.6
 	github.com/spf13/cobra v1.8.1
 	k8s.io/apimachinery v0.32.0
 	k8s.io/cli-runtime v0.32.0
