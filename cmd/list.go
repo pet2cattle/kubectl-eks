@@ -114,7 +114,9 @@ var listCmd = &cobra.Command{
 
 							if name_contains != "" {
 								if strings.Contains(cluster.ClusterName, name_contains) {
-									shouldAdd = true
+									if version == "" {
+										shouldAdd = true
+									}
 								} else {
 									// resetting shouldAdd to false if name_contains is set and the cluster name does not contain the string
 									shouldAdd = false
