@@ -11,6 +11,34 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func SwitchToCluster(clusterArn string, namespace string) {
+	clusterInfo := loadClusterByArn(clusterArn)
+
+	// clusterInfo := loadClusterByArn(clusterARN)
+	if clusterInfo == nil {
+		fmt.Println("Cluster not found")
+		os.Exit(1)
+	}
+
+	err := eks.UpdateKubeConfig(clusterInfo.AWSProfile, clusterInfo.Region, clusterInfo.ClusterName)
+	if err != nil {
+		fmt.Printf("Failed to update kubeconfig: %s\n", err.Error())
+		os.Exit(1)
+	}
+
+	if namespace != "" {
+		err = k8s.SetNamespace(namespace)
+		if err != nil {
+			fmt.Printf("Failed to set namespace: %s\n", err.Error())
+			os.Exit(1)
+		} else {
+			fmt.Printf("Switched to EKS cluster %q (namespace: %q) in region %q using profile %q\n", clusterInfo.ClusterName, namespace, clusterInfo.Region, clusterInfo.AWSProfile)
+		}
+	} else {
+		fmt.Printf("Switched to EKS cluster %q in region %q using profile %q\n", clusterInfo.ClusterName, clusterInfo.Region, clusterInfo.AWSProfile)
+	}
+}
+
 var useCmd = &cobra.Command{
 	Use:   "use",
 	Short: "switch to a different EKS cluster",
@@ -37,31 +65,7 @@ var useCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		clusterInfo := loadClusterByArn(clusterArn)
-
-		// clusterInfo := loadClusterByArn(clusterARN)
-		if clusterInfo == nil {
-			fmt.Println("Cluster not found")
-			return
-		}
-
-		err = eks.UpdateKubeConfig(clusterInfo.AWSProfile, clusterInfo.Region, clusterInfo.ClusterName)
-		if err != nil {
-			fmt.Printf("Failed to update kubeconfig: %s\n", err.Error())
-			return
-		}
-
-		if namespace != "" {
-			err = k8s.SetNamespace(namespace)
-			if err != nil {
-				fmt.Printf("Failed to set namespace: %s\n", err.Error())
-				return
-			} else {
-				fmt.Printf("Switched to EKS cluster %q (namespace: %q) in region %q using profile %q\n", clusterInfo.ClusterName, namespace, clusterInfo.Region, clusterInfo.AWSProfile)
-			}
-		} else {
-			fmt.Printf("Switched to EKS cluster %q in region %q using profile %q\n", clusterInfo.ClusterName, clusterInfo.Region, clusterInfo.AWSProfile)
-		}
+		SwitchToCluster(clusterArn, namespace)
 	},
 }
 

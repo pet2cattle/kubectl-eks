@@ -9,6 +9,7 @@ import (
 
 	"github.com/pet2cattle/kubectl-eks/pkg/awsconfig"
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
+	"github.com/pet2cattle/kubectl-eks/pkg/k8s"
 	"github.com/pet2cattle/kubectl-eks/pkg/sts"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -203,6 +204,11 @@ var rootCmd = &cobra.Command{
 			refresh = false
 		}
 
+		region, err := cmd.Flags().GetString("region")
+		if err != nil {
+			region = ""
+		}
+
 		// Load Kubernetes configuration
 		config, err := KubernetesConfigFlags.ToRawKubeConfigLoader().RawConfig()
 		if err != nil {
@@ -223,51 +229,73 @@ var rootCmd = &cobra.Command{
 
 		clusterArn := contextDetails.Cluster
 
-		loadCacheFromDisk()
-		if CachedData == nil {
-			CachedData = &KubeCtlEksCache{
-				ClusterByARN: make(map[string]ClusterInfo),
-				ClusterList:  make(map[string]map[string][]ClusterInfo),
-			}
-		}
+		if region != "" {
+			// arn:aws:eks:us-east-1:123456789123:cluster/demo
 
-		clusterInfo, exists := CachedData.ClusterByARN[clusterArn]
-		if !exists || refresh {
-			foundClusterInfo := loadClusterByArn(clusterArn)
-
-			if foundClusterInfo == nil {
-				fmt.Println("Current cluster is not an EKS cluster")
+			arnRegex := `^arn:aws:eks:([a-z0-9-]+):(\d{12}):cluster/([a-zA-Z0-9-]+)$`
+			re := regexp.MustCompile(arnRegex)
+			matches := re.FindStringSubmatch(clusterArn)
+			if matches == nil {
+				fmt.Printf("Invalid cluster ARN: %q\n", clusterArn)
 				os.Exit(1)
-			} else {
-				clusterInfo = *foundClusterInfo
 			}
-		}
 
-		// validate cached data, if invalid, refresh
-		if clusterInfo.Arn != clusterArn {
-			CachedData = &KubeCtlEksCache{
-				ClusterByARN: make(map[string]ClusterInfo),
-				ClusterList:  make(map[string]map[string][]ClusterInfo),
-			}
-			foundClusterInfo := loadClusterByArn(clusterArn)
-			if foundClusterInfo == nil {
-				fmt.Println("Current cluster is not an EKS cluster")
-				os.Exit(1)
-			} else {
-				clusterInfo = *foundClusterInfo
-			}
-		}
+			newClusterArn := fmt.Sprintf("arn:aws:eks:%s:%s:cluster/%s", region, matches[2], matches[3])
 
-		if clusterInfo.Arn != clusterArn {
-			fmt.Printf("%s\n", clusterArn)
+			currentNamespace, err := k8s.GetCurrentNamespace()
+			if err != nil {
+				currentNamespace = ""
+			}
+
+			SwitchToCluster(newClusterArn, currentNamespace)
+
 		} else {
-			PrintClusters(clusterInfo)
+			loadCacheFromDisk()
+			if CachedData == nil {
+				CachedData = &KubeCtlEksCache{
+					ClusterByARN: make(map[string]ClusterInfo),
+					ClusterList:  make(map[string]map[string][]ClusterInfo),
+				}
+			}
+
+			clusterInfo, exists := CachedData.ClusterByARN[clusterArn]
+			if !exists || refresh {
+				foundClusterInfo := loadClusterByArn(clusterArn)
+
+				if foundClusterInfo == nil {
+					fmt.Println("Current cluster is not an EKS cluster")
+					os.Exit(1)
+				} else {
+					clusterInfo = *foundClusterInfo
+				}
+			}
+
+			// validate cached data, if invalid, refresh
+			if clusterInfo.Arn != clusterArn {
+				CachedData = &KubeCtlEksCache{
+					ClusterByARN: make(map[string]ClusterInfo),
+					ClusterList:  make(map[string]map[string][]ClusterInfo),
+				}
+				foundClusterInfo := loadClusterByArn(clusterArn)
+				if foundClusterInfo == nil {
+					fmt.Println("Current cluster is not an EKS cluster")
+					os.Exit(1)
+				} else {
+					clusterInfo = *foundClusterInfo
+				}
+			}
+
+			if clusterInfo.Arn != clusterArn {
+				fmt.Printf("%s\n", clusterArn)
+			} else {
+				PrintClusters(clusterInfo)
+			}
+
+			// save data to configuration
+			saveCacheToDisk()
+
+			os.Exit(0)
 		}
-
-		// save data to configuration
-		saveCacheToDisk()
-
-		os.Exit(0)
 	},
 }
 
@@ -281,6 +309,7 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.Flags().StringP("region", "r", "", "Switch to the same cluster in a different region")
 	rootCmd.Flags().BoolP("refresh", "u", false, "Do not use cached data, refresh from AWS")
 
 	KubernetesConfigFlags = genericclioptions.NewConfigFlags(true)
