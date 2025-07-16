@@ -68,6 +68,10 @@ AWS PROFILE             AWS REGION   CLUSTER NAME         STATUS   VERSION   CRE
 profile-1               us-west-2    cluster-1            ACTIVE   1.29      2024-06-21 19:21:40   arn:aws:eks:us-west-2:123456789123:cluster/cluster-1
 ```
 
+##### Flags
+
+- `-r --region string`: Switch to the same cluster in a different AWS region.
+
 #### <a name='use'></a>`use`
 Switch to a different EKS cluster by updating your kubeconfig.
 
@@ -81,6 +85,10 @@ Example output:
 $ kubectl eks use arn:aws:eks:us-west-2:123456789123:cluster/cluster-1
 Switched to EKS cluster "cluster-1" in region "us-west-2" using profile "profile-1"
 ```
+
+##### Flags
+
+- `-n --namespace string`: Specify the namespace to use in the cluster.
 
 #### <a name='list'></a>`list`
 List all EKS clusters in your AWS account with optional filters.
