@@ -14,6 +14,7 @@ A kubectl plugin for **managing with Amazon EKS clusters**. This plugin provides
 		* [`nodegroups`](#nodegroups)
 		* [`insights`](#insights)
 		* [`updates`](#updates)
+      * [`stats`] (#stats)
 * [Examples](#Examples)
 * [Prerequisites](#Prerequisites)
 
@@ -280,6 +281,39 @@ LoggingUpdate   Successful
    ```bash
    kubectl eks updates my-cluster
    ```
+
+#### <a name='stats'></a>`stats`
+Get EKS cluster stats of the current cluster or all the clusters that matches a filter
+
+```bash
+kubectl eks stats [flags]
+```
+
+##### Flags
+
+- `-c, --name-contains string`: Filter clusters whose names contain the specified string.
+- `-p, --profile string`: Specify the AWS profile to use.
+- `-q, --profile-contains string`: Filter clusters by profiles whose names contain the specified string.
+- `-r, --region string`: Specify the AWS region to use.
+- `-v, --version string`: Filter clusters by a specific Kubernetes version.
+
+##### k8s stats for the current cluster:
+
+```
+$ k eks stats
+AWS PROFILE   AWS REGION   CLUSTER NAME              ARN                                                                  VERSION   NAMESPACES   POD COUNT   NODE COUNT   NODES NOT READY   PODS NOT RUNNING   PODS WITH RESTARTS
+demo          us-east-1    dev-cluster-1             arn:aws:eks:us-east-1:123456789123:cluster/dev-cluster-1             1.31      30           53          3            0                 0                  0
+```
+
+##### k8s stats for a set of clusters
+
+```
+jprats@croscat:~/github/kubectl-eks$ k eks stats -q icpdp
+AWS PROFILE   AWS REGION   CLUSTER NAME              ARN                                                                  VERSION   NAMESPACES   POD COUNT   NODE COUNT   NODES NOT READY   PODS NOT RUNNING   PODS WITH RESTARTS
+demo          us-east-1    dev-cluster-1             arn:aws:eks:us-east-1:123456789123:cluster/dev-cluster-1             1.31      30           53          3            0                 0                  0
+demo          us-west-2    dev-cluster-2             arn:aws:eks:us-west-2:123456789123:cluster/dev-cluster-2             1.31      16           19          1            0                 0                  0
+```
+
 
 ## <a name='Prerequisites'></a>Prerequisites
 

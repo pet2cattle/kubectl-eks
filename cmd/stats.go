@@ -17,7 +17,7 @@ import (
 var statsCmd = &cobra.Command{
 	Use:   "stats",
 	Short: "Get EKS cluster stats",
-	Long:  `Get EKS cluster stats (node count, pod count, pod status / node status check)`,
+	Long:  `Get EKS cluster stats of the current cluster or all the clusters that matches a filter`,
 	Run: func(cmd *cobra.Command, args []string) {
 		profile, err := cmd.Flags().GetString("profile")
 		if err != nil {
