@@ -14,8 +14,7 @@ A kubectl plugin for **managing with Amazon EKS clusters**. This plugin provides
 		* [`nodegroups`](#nodegroups)
 		* [`insights`](#insights)
 		* [`updates`](#updates)
-      * [`stats`] (#stats)
-* [Examples](#Examples)
+		* [`stats`](#stats)
 * [Prerequisites](#Prerequisites)
 
 <!-- vscode-markdown-toc-config
@@ -240,7 +239,7 @@ TYPE            STATUS       ERRORS
 LoggingUpdate   Successful
 ```
 
-## <a name='Examples'></a>Examples
+##### <a name='Examples'></a>Examples
 
 1. **List all clusters:**
    ```bash
