@@ -3,6 +3,7 @@
 A kubectl plugin for **managing with Amazon EKS clusters**. This plugin provides convenient commands for listing, inspecting, and switching between EKS clusters and their associated resources.
 
 <!-- vscode-markdown-toc -->
+* [Prerequisites](#Prerequisites)
 * [Installation](#Installation)
 	* [Binary Installation](#BinaryInstallation)
 * [Usage](#Usage)
@@ -15,13 +16,17 @@ A kubectl plugin for **managing with Amazon EKS clusters**. This plugin provides
 		* [`insights`](#insights)
 		* [`updates`](#updates)
 		* [`stats`](#stats)
-* [Prerequisites](#Prerequisites)
 
 <!-- vscode-markdown-toc-config
 	numbering=false
 	autoSave=true
 	/vscode-markdown-toc-config -->
 <!-- /vscode-markdown-toc -->
+
+## <a name='Prerequisites'></a>Prerequisites
+
+- **AWS CLI:** Ensure that `aws` is installed and configured with the appropriate credentials and region.
+- **kubectl:** Ensure you have `kubectl` installed and configured.
 
 ## <a name='Installation'></a>Installation
 
@@ -312,9 +317,3 @@ AWS PROFILE   AWS REGION   CLUSTER NAME              ARN                        
 demo          us-east-1    dev-cluster-1             arn:aws:eks:us-east-1:123456789123:cluster/dev-cluster-1             1.31      30           53          3            0                 0                  0
 demo          us-west-2    dev-cluster-2             arn:aws:eks:us-west-2:123456789123:cluster/dev-cluster-2             1.31      16           19          1            0                 0                  0
 ```
-
-
-## <a name='Prerequisites'></a>Prerequisites
-
-- **AWS CLI:** Ensure that the AWS CLI is installed and configured with the appropriate credentials and region.
-- **kubectl:** Ensure you have `kubectl` installed and configured.
