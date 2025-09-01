@@ -287,7 +287,14 @@ LoggingUpdate   Successful
    ```
 
 #### <a name='stats'></a>`stats`
-Get EKS cluster stats of the current cluster or all the clusters that matches a filter
+Get kubernetes stats of the current cluster or all the clusters that matches a filter:
+
+* Namespace count
+* Pod count
+* Node count
+* Number of Nodes not ready
+* Number of Pods not in the `Running` state
+* Number of Pods with restarts
 
 ```bash
 kubectl eks stats [flags]
