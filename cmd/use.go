@@ -20,7 +20,7 @@ func SwitchToCluster(clusterArn string, namespace string) {
 		os.Exit(1)
 	}
 
-	err := eks.UpdateKubeConfig(clusterInfo.AWSProfile, clusterInfo.Region, clusterInfo.ClusterName)
+	err := eks.UpdateKubeConfig(clusterInfo.AWSProfile, clusterInfo.Region, clusterInfo.ClusterName, "")
 	if err != nil {
 		fmt.Printf("Failed to update kubeconfig: %s\n", err.Error())
 		os.Exit(1)
