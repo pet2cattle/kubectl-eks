@@ -68,6 +68,56 @@ func saveCacheToDisk() {
 	}
 }
 
+func PrintMultiGetPods(podList ...k8s.K8SClusterPodList) {
+	// Create a table printer
+	printer := printers.NewTablePrinter(printers.PrintOptions{})
+
+	// Create a Table object
+	table := &v1.Table{
+		ColumnDefinitions: []v1.TableColumnDefinition{
+			{Name: "AWS PROFILE", Type: "string"},
+			{Name: "AWS REGION", Type: "string"},
+			{Name: "CLUSTER NAME", Type: "string"},
+			{Name: "ARN", Type: "string"},
+			{Name: "VERSION", Type: "string"},
+			{Name: "NAMESPACE", Type: "string"},
+			{Name: "POD NAME", Type: "string"},
+			{Name: "READY", Type: "string"},
+			{Name: "STATUS", Type: "string"},
+			{Name: "RESTARTS", Type: "number"},
+			{Name: "AGE", Type: "string"},
+		},
+	}
+
+	// Populate rows with data from the variadic K8Sstats
+	for _, clusterList := range podList {
+		for _, pod := range clusterList.Pods {
+			table.Rows = append(table.Rows, v1.TableRow{
+				Cells: []interface{}{
+					clusterList.AWSProfile,
+					clusterList.Region,
+					clusterList.ClusterName,
+					clusterList.Arn,
+					clusterList.Version,
+					pod.Namespace,
+					pod.Name,
+					pod.Ready,
+					pod.Status,
+					pod.Restarts,
+					pod.Age,
+				},
+			})
+		}
+	}
+
+	// Print the table
+	err := printer.PrintObj(table, os.Stdout)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
+		os.Exit(1)
+	}
+}
+
 // print k8s stats in a kubectl-style table format
 func PrintK8SStats(statsList ...k8s.K8Sstats) {
 	// Create a table printer

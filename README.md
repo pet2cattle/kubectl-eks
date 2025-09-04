@@ -325,3 +325,20 @@ AWS PROFILE   AWS REGION   CLUSTER NAME              ARN                        
 demo          us-east-1    dev-cluster-1             arn:aws:eks:us-east-1:123456789123:cluster/dev-cluster-1             1.31      30           53          3            0                 0                  0
 demo          us-west-2    dev-cluster-2             arn:aws:eks:us-west-2:123456789123:cluster/dev-cluster-2             1.31      16           19          1            0                 0                  0
 ```
+
+#### <a name='mgetpods'></a>`mget-pods`
+List Pods from all the clusters that match a filter.
+
+```bash
+kubectl eks mget-pods [flags]
+```
+
+##### Flags
+
+- `-c, --name-contains string`: Filter clusters whose names contain the specified string.
+- `-p, --profile string`: Specify the AWS profile to use.
+- `-q, --profile-contains string`: Filter clusters by profiles whose names contain the specified string.
+- `-r, --region string`: Specify the AWS region to use.
+- `-v, --version string`: Filter clusters by a specific Kubernetes version.
+- `-n, --namespace string`: Filter a specific namespace.
+- `-A, --all-namespaces`: Show pods from all the namespaces.
