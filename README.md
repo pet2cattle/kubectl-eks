@@ -16,6 +16,7 @@ A kubectl plugin for **managing with Amazon EKS clusters**. This plugin provides
 		* [`insights`](#insights)
 		* [`updates`](#updates)
 		* [`stats`](#stats)
+      * [`mget-pods`](#mgetpods)
 
 <!-- vscode-markdown-toc-config
 	numbering=false
