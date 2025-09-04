@@ -189,7 +189,7 @@ var multiGetPodsCmd = &cobra.Command{
 		previousContext := config.CurrentContext
 
 		// current k8s context
-		k8sStatsList := []k8s.K8SClusterPodList{}
+		k8SClusterPodList := []k8s.K8SClusterPodList{}
 		for _, clusterInfo := range clusterList {
 			err := eks.UpdateKubeConfig(clusterInfo.AWSProfile, clusterInfo.Region, clusterInfo.ClusterName, "")
 			if err != nil {
@@ -200,7 +200,7 @@ var multiGetPodsCmd = &cobra.Command{
 			if err != nil {
 				continue
 			} else {
-				k8sStatsList = append(k8sStatsList, *k8sPodList)
+				k8SClusterPodList = append(k8SClusterPodList, *k8sPodList)
 			}
 		}
 
@@ -215,8 +215,7 @@ var multiGetPodsCmd = &cobra.Command{
 			log.Fatalf("Error updating kubeconfig: %v", err)
 		}
 
-		//PrintK8SStats(k8sStatsList...)
-		PrintMultiGetPods(k8sStatsList...)
+		PrintMultiGetPods(k8SClusterPodList...)
 
 		saveCacheToDisk()
 	},
