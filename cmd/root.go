@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"time"
 
 	"github.com/pet2cattle/kubectl-eks/pkg/awsconfig"
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
@@ -13,6 +14,7 @@ import (
 	"github.com/pet2cattle/kubectl-eks/pkg/sts"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 )
@@ -92,6 +94,7 @@ func PrintMultiGetPods(podList ...k8s.K8SClusterPodList) {
 	// Populate rows with data from the variadic K8Sstats
 	for _, clusterList := range podList {
 		for _, pod := range clusterList.Pods {
+			humanAge := duration.ShortHumanDuration(time.Since(pod.Age.Time))
 			table.Rows = append(table.Rows, v1.TableRow{
 				Cells: []interface{}{
 					clusterList.AWSProfile,
@@ -104,7 +107,7 @@ func PrintMultiGetPods(podList ...k8s.K8SClusterPodList) {
 					pod.Ready,
 					pod.Status,
 					pod.Restarts,
-					pod.Age,
+					humanAge,
 				},
 			})
 		}
