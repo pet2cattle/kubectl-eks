@@ -94,6 +94,7 @@ Switched to EKS cluster "cluster-1" in region "us-west-2" using profile "profile
 ##### Flags
 
 - `-n --namespace string`: Specify the namespace to use in the cluster.
+- `-p --profile string`: Use a specific profile to load the .kubeconfig settings.
 
 #### <a name='list'></a>`list`
 List all EKS clusters in your AWS account with optional filters.

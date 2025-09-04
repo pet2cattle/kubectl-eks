@@ -11,13 +11,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func SwitchToCluster(clusterArn string, namespace string) {
+func SwitchToCluster(clusterArn, namespace, profile string) {
 	clusterInfo := loadClusterByArn(clusterArn)
 
 	// clusterInfo := loadClusterByArn(clusterARN)
 	if clusterInfo == nil {
 		fmt.Println("Cluster not found")
 		os.Exit(1)
+	}
+
+	if profile != "" {
+		clusterInfo.AWSProfile = profile
 	}
 
 	err := eks.UpdateKubeConfig(clusterInfo.AWSProfile, clusterInfo.Region, clusterInfo.ClusterName, "")
@@ -55,6 +59,11 @@ var useCmd = &cobra.Command{
 			namespace = ""
 		}
 
+		profile, err := cmd.Flags().GetString("profile")
+		if err != nil {
+			profile = ""
+		}
+
 		// check if it is an ARN
 		arnRegex := `^arn:aws:eks:([a-z0-9-]+):(\d{12}):cluster/([a-zA-Z0-9-]+)$`
 		re := regexp.MustCompile(arnRegex)
@@ -65,12 +74,13 @@ var useCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		SwitchToCluster(clusterArn, namespace)
+		SwitchToCluster(clusterArn, namespace, profile)
 	},
 }
 
 func init() {
 	useCmd.Flags().StringP("namespace", "n", "", "Set specific namespace for the context")
+	useCmd.Flags().StringP("profile", "p", "", "Set specific AWS profile for the context")
 
 	rootCmd.AddCommand(useCmd)
 }

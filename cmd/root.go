@@ -296,7 +296,7 @@ var rootCmd = &cobra.Command{
 				currentNamespace = ""
 			}
 
-			SwitchToCluster(newClusterArn, currentNamespace)
+			SwitchToCluster(newClusterArn, currentNamespace, "")
 
 		} else {
 			loadCacheFromDisk()
