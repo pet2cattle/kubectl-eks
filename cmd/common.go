@@ -282,3 +282,47 @@ func PrintClusters(noHeaders bool, clusterInfos ...ClusterInfo) {
 		os.Exit(1)
 	}
 }
+
+// PrintJsonPathResults prints the results in a kubectl-style table format
+func PrintJsonPathResults(noHeaders bool, results []JsonPathResult) {
+	// Create a table printer
+	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
+
+	// Create a Table object
+	table := &v1.Table{
+		ColumnDefinitions: []v1.TableColumnDefinition{
+			{Name: "PROFILE", Type: "string"},
+			{Name: "REGION", Type: "string"},
+			{Name: "CLUSTER", Type: "string"},
+			{Name: "NAMESPACE", Type: "string"},
+			{Name: "NAME", Type: "string"},
+			{Name: "VALUE", Type: "string"},
+		},
+	}
+
+	// Populate rows with data
+	for _, result := range results {
+		value := result.Value
+		if result.Error != "" {
+			value = "ERROR: " + result.Error
+		}
+
+		table.Rows = append(table.Rows, v1.TableRow{
+			Cells: []interface{}{
+				result.Profile,
+				result.Region,
+				result.ClusterName,
+				result.Namespace,
+				result.Resource,
+				value,
+			},
+		})
+	}
+
+	// Print the table
+	err := printer.PrintObj(table, os.Stdout)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
+		os.Exit(1)
+	}
+}

@@ -15,6 +15,16 @@ import (
 	"k8s.io/client-go/util/jsonpath"
 )
 
+type JsonPathResult struct {
+	Profile     string
+	Region      string
+	ClusterName string
+	Namespace   string
+	Resource    string
+	Value       string
+	Error       string
+}
+
 var mJsonpathCmd = &cobra.Command{
 	Use:   "mget-jsonpath [resource-type] [resource-name] [jsonpath-expression]",
 	Short: "Extract JSONPath values from resources across multiple clusters",
@@ -74,17 +84,7 @@ var mJsonpathCmd = &cobra.Command{
 			log.Fatalf("Error parsing JSONPath expression '%s': %v", jsonpathExpr, err)
 		}
 
-		type Result struct {
-			Profile     string
-			Region      string
-			ClusterName string
-			Namespace   string
-			Resource    string
-			Value       string
-			Error       string
-		}
-
-		results := []Result{}
+		results := []JsonPathResult{}
 
 		for _, clusterInfo := range clusterList {
 			err := eks.UpdateKubeConfig(clusterInfo.AWSProfile, clusterInfo.Region, clusterInfo.ClusterName, "")
@@ -136,7 +136,7 @@ var mJsonpathCmd = &cobra.Command{
 					// Get single resource
 					obj, name, getErr := getResource(clientset, resourceType, ns, resourceName)
 					if getErr != nil {
-						results = append(results, Result{
+						results = append(results, JsonPathResult{
 							Profile:     clusterInfo.AWSProfile,
 							Region:      clusterInfo.Region,
 							ClusterName: clusterInfo.ClusterName,
@@ -152,7 +152,7 @@ var mJsonpathCmd = &cobra.Command{
 					// List all resources
 					objs, names, listErr := listResources(clientset, resourceType, ns)
 					if listErr != nil {
-						results = append(results, Result{
+						results = append(results, JsonPathResult{
 							Profile:     clusterInfo.AWSProfile,
 							Region:      clusterInfo.Region,
 							ClusterName: clusterInfo.ClusterName,
@@ -186,7 +186,7 @@ var mJsonpathCmd = &cobra.Command{
 					// Execute JSONPath
 					values, err := jp.FindResults(obj)
 					if err != nil {
-						results = append(results, Result{
+						results = append(results, JsonPathResult{
 							Profile:     clusterInfo.AWSProfile,
 							Region:      clusterInfo.Region,
 							ClusterName: clusterInfo.ClusterName,
@@ -198,7 +198,7 @@ var mJsonpathCmd = &cobra.Command{
 					}
 
 					if len(values) == 0 || len(values[0]) == 0 {
-						results = append(results, Result{
+						results = append(results, JsonPathResult{
 							Profile:     clusterInfo.AWSProfile,
 							Region:      clusterInfo.Region,
 							ClusterName: clusterInfo.ClusterName,
@@ -228,7 +228,7 @@ var mJsonpathCmd = &cobra.Command{
 						}
 					}
 
-					results = append(results, Result{
+					results = append(results, JsonPathResult{
 						Profile:     clusterInfo.AWSProfile,
 						Region:      clusterInfo.Region,
 						ClusterName: clusterInfo.ClusterName,
@@ -253,18 +253,7 @@ var mJsonpathCmd = &cobra.Command{
 
 		// Print results
 		noHeaders, _ := cmd.Flags().GetBool("no-headers")
-		if !noHeaders {
-			fmt.Printf("%-20s %-15s %-40s %-20s %-30s %s\n", "PROFILE", "REGION", "CLUSTER", "NAMESPACE", "NAME", "VALUE")
-		}
-		for _, result := range results {
-			if result.Error != "" {
-				fmt.Printf("%-20s %-15s %-40s %-20s %-30s ERROR: %s\n",
-					result.Profile, result.Region, result.ClusterName, result.Namespace, result.Resource, result.Error)
-			} else {
-				fmt.Printf("%-20s %-15s %-40s %-20s %-30s %s\n",
-					result.Profile, result.Region, result.ClusterName, result.Namespace, result.Resource, result.Value)
-			}
-		}
+		PrintJsonPathResults(noHeaders, results)
 
 		saveCacheToDisk()
 	},
@@ -405,7 +394,7 @@ func init() {
 	mJsonpathCmd.Flags().StringP("version", "v", "", "Filter by EKS version")
 	mJsonpathCmd.Flags().StringP("namespace", "n", "", "Kubernetes namespace")
 	mJsonpathCmd.Flags().BoolP("all-namespaces", "A", false, "Query all Kubernetes namespaces")
-	mJsonpathCmd.Flags().StringP("resource-starts-with", "s", "", "Filter resources that start with this string")
+	mJsonpathCmd.Flags().StringP("resource-starts-with", "w", "", "Filter resources that start with this string")
 	mJsonpathCmd.Flags().Bool("no-headers", false, "Don't print headers")
 
 	rootCmd.AddCommand(mJsonpathCmd)
