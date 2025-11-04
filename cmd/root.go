@@ -5,18 +5,13 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"sort"
-	"time"
 
 	"github.com/pet2cattle/kubectl-eks/pkg/awsconfig"
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
 	"github.com/pet2cattle/kubectl-eks/pkg/k8s"
 	"github.com/pet2cattle/kubectl-eks/pkg/sts"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/cli-runtime/pkg/printers"
 )
 
 type ClusterInfo struct {
@@ -66,154 +61,6 @@ func saveCacheToDisk() {
 	err = os.WriteFile(configFile, configData, 0644)
 	if err != nil {
 		fmt.Println("Error saving configuration file")
-		os.Exit(1)
-	}
-}
-
-func PrintMultiGetPods(noHeaders bool, podList ...k8s.K8SClusterPodList) {
-	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
-
-	// Create a Table object
-	table := &v1.Table{
-		ColumnDefinitions: []v1.TableColumnDefinition{
-			{Name: "AWS PROFILE", Type: "string"},
-			{Name: "AWS REGION", Type: "string"},
-			{Name: "CLUSTER NAME", Type: "string"},
-			{Name: "ARN", Type: "string"},
-			{Name: "VERSION", Type: "string"},
-			{Name: "NAMESPACE", Type: "string"},
-			{Name: "POD NAME", Type: "string"},
-			{Name: "READY", Type: "string"},
-			{Name: "STATUS", Type: "string"},
-			{Name: "RESTARTS", Type: "number"},
-			{Name: "AGE", Type: "string"},
-		},
-	}
-
-	// Populate rows with data from the variadic K8Sstats
-	for _, clusterList := range podList {
-		for _, pod := range clusterList.Pods {
-			humanAge := duration.ShortHumanDuration(time.Since(pod.Age.Time))
-			table.Rows = append(table.Rows, v1.TableRow{
-				Cells: []interface{}{
-					clusterList.AWSProfile,
-					clusterList.Region,
-					clusterList.ClusterName,
-					clusterList.Arn,
-					clusterList.Version,
-					pod.Namespace,
-					pod.Name,
-					pod.Ready,
-					pod.Status,
-					pod.Restarts,
-					humanAge,
-				},
-			})
-		}
-	}
-
-	// Print the table
-	err := printer.PrintObj(table, os.Stdout)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
-		os.Exit(1)
-	}
-}
-
-// print k8s stats in a kubectl-style table format
-func PrintK8SStats(noHeaders bool, statsList ...k8s.K8Sstats) {
-	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
-
-	// Create a Table object
-	table := &v1.Table{
-		ColumnDefinitions: []v1.TableColumnDefinition{
-			{Name: "AWS PROFILE", Type: "string"},
-			{Name: "AWS REGION", Type: "string"},
-			{Name: "CLUSTER NAME", Type: "string"},
-			{Name: "ARN", Type: "string"},
-			{Name: "VERSION", Type: "string"},
-			{Name: "NAMESPACES", Type: "number"},
-			{Name: "POD COUNT", Type: "number"},
-			{Name: "NODE COUNT", Type: "number"},
-			{Name: "NODES NOT READY", Type: "number"},
-			{Name: "PODS NOT RUNNING", Type: "number"},
-			{Name: "PODS WITH RESTARTS", Type: "number"},
-		},
-	}
-
-	// Populate rows with data from the variadic K8Sstats
-	for _, stats := range statsList {
-		table.Rows = append(table.Rows, v1.TableRow{
-			Cells: []interface{}{
-				stats.AWSProfile,
-				stats.Region,
-				stats.ClusterName,
-				stats.Arn,
-				stats.Version,
-				stats.NamespaceCount,
-				stats.PodCount,
-				stats.NodeCount,
-				stats.NodesNotReady,
-				stats.PodsNotRunning,
-				stats.PodsWithRestartsCount,
-			},
-		})
-	}
-
-	// Print the table
-	err := printer.PrintObj(table, os.Stdout)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
-		os.Exit(1)
-	}
-}
-
-// printResults prints results in a kubectl-style table format
-func PrintClusters(noHeaders bool, clusterInfos ...ClusterInfo) {
-	// Sort the clusterInfos by ClusterName (you can customize the field for sorting)
-	sort.Slice(clusterInfos, func(i, j int) bool {
-		return clusterInfos[i].AWSProfile < clusterInfos[j].AWSProfile
-	})
-
-	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
-
-	// Create a Table object
-	table := &v1.Table{
-		ColumnDefinitions: []v1.TableColumnDefinition{
-			// {Name: "AWS ACCOUNT ID", Type: "string"},
-			{Name: "AWS PROFILE", Type: "string"},
-			{Name: "AWS REGION", Type: "string"},
-			{Name: "CLUSTER NAME", Type: "string"},
-			{Name: "STATUS", Type: "string"},
-			{Name: "VERSION", Type: "string"},
-			{Name: "CREATED", Type: "string"},
-			{Name: "ARN", Type: "string"},
-		},
-	}
-
-	// Populate rows with data from the variadic ClusterInfo
-	for _, clusterInfo := range clusterInfos {
-		table.Rows = append(table.Rows, v1.TableRow{
-			Cells: []interface{}{
-				// clusterInfo.AWSAccountID,
-				clusterInfo.AWSProfile,
-				clusterInfo.Region,
-				clusterInfo.ClusterName,
-				clusterInfo.Status,
-				clusterInfo.Version,
-				clusterInfo.CreatedAt,
-				clusterInfo.Arn,
-			},
-		})
-	}
-
-	// Print the table
-	err := printer.PrintObj(table, os.Stdout)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
 		os.Exit(1)
 	}
 }
