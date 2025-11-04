@@ -73,19 +73,24 @@ var updatesCmd = &cobra.Command{
 			return
 		}
 
-		PrintUpdates(updateList...)
+		noHeaders, err := cmd.Flags().GetBool("no-headers")
+		if err != nil {
+			noHeaders = false
+		}
+
+		PrintUpdates(noHeaders, updateList...)
 
 	},
 }
 
-func PrintUpdates(updateList ...eks.EKSUpdateInfo) {
+func PrintUpdates(noHeaders bool, updateList ...eks.EKSUpdateInfo) {
 	// Sort the clusterInfos by ClusterName (you can customize the field for sorting)
 	sort.Slice(updateList, func(i, j int) bool {
 		return updateList[i].Type < updateList[j].Type
 	})
 
 	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{})
+	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
 
 	// Create a Table object
 	table := &v1.Table{

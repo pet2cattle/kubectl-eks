@@ -81,7 +81,12 @@ var insightsCmd = &cobra.Command{
 				return
 			}
 
-			PrintInsights(insightsList...)
+			noHeaders, err := cmd.Flags().GetBool("no-headers")
+			if err != nil {
+				noHeaders = false
+			}
+
+			PrintInsights(noHeaders, insightsList...)
 		} else {
 			insightItem, err := eks.DescribeEKSInsight(clusterInfo.AWSProfile, clusterInfo.Region, clusterInfo.ClusterName, showID)
 
@@ -124,14 +129,14 @@ var insightsCmd = &cobra.Command{
 	},
 }
 
-func PrintInsights(insights ...eks.EKSInsightInfo) {
+func PrintInsights(noHeaders bool, insights ...eks.EKSInsightInfo) {
 	// Sort the clusterInfos by ClusterName (you can customize the field for sorting)
 	sort.Slice(insights, func(i, j int) bool {
 		return insights[i].ID < insights[j].ID
 	})
 
 	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{})
+	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
 
 	// Create a Table object
 	table := &v1.Table{

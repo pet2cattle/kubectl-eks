@@ -78,7 +78,12 @@ var statsCmd = &cobra.Command{
 			log.Fatalf("Error updating kubeconfig: %v", err)
 		}
 
-		PrintK8SStats(k8sStatsList...)
+		noHeaders, err := cmd.Flags().GetBool("no-headers")
+		if err != nil {
+			noHeaders = false
+		}
+
+		PrintK8SStats(noHeaders, k8sStatsList...)
 
 		saveCacheToDisk()
 	},

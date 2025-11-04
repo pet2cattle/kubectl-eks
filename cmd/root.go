@@ -70,9 +70,9 @@ func saveCacheToDisk() {
 	}
 }
 
-func PrintMultiGetPods(podList ...k8s.K8SClusterPodList) {
+func PrintMultiGetPods(noHeaders bool, podList ...k8s.K8SClusterPodList) {
 	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{})
+	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
 
 	// Create a Table object
 	table := &v1.Table{
@@ -122,9 +122,9 @@ func PrintMultiGetPods(podList ...k8s.K8SClusterPodList) {
 }
 
 // print k8s stats in a kubectl-style table format
-func PrintK8SStats(statsList ...k8s.K8Sstats) {
+func PrintK8SStats(noHeaders bool, statsList ...k8s.K8Sstats) {
 	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{})
+	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
 
 	// Create a Table object
 	table := &v1.Table{
@@ -171,14 +171,14 @@ func PrintK8SStats(statsList ...k8s.K8Sstats) {
 }
 
 // printResults prints results in a kubectl-style table format
-func PrintClusters(clusterInfos ...ClusterInfo) {
+func PrintClusters(noHeaders bool, clusterInfos ...ClusterInfo) {
 	// Sort the clusterInfos by ClusterName (you can customize the field for sorting)
 	sort.Slice(clusterInfos, func(i, j int) bool {
 		return clusterInfos[i].AWSProfile < clusterInfos[j].AWSProfile
 	})
 
 	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{})
+	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
 
 	// Create a Table object
 	table := &v1.Table{
@@ -387,10 +387,15 @@ var rootCmd = &cobra.Command{
 				}
 			}
 
+			noHeaders, err := cmd.Flags().GetBool("no-headers")
+			if err != nil {
+				noHeaders = false
+			}
+
 			if clusterInfo.Arn != clusterArn {
 				fmt.Printf("%s\n", clusterArn)
 			} else {
-				PrintClusters(clusterInfo)
+				PrintClusters(noHeaders, clusterInfo)
 			}
 
 			// save data to configuration
@@ -413,6 +418,7 @@ func Execute() {
 func init() {
 	rootCmd.Flags().StringP("region", "r", "", "Switch to the same cluster in a different region")
 	rootCmd.Flags().BoolP("refresh", "u", false, "Do not use cached data, refresh from AWS")
+	rootCmd.Flags().Bool("no-headers", false, "When using the default or custom-column output format, don't print headers (default print headers)")
 
 	KubernetesConfigFlags = genericclioptions.NewConfigFlags(true)
 	KubernetesConfigFlags.AddFlags(rootCmd.PersistentFlags())

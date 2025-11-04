@@ -134,7 +134,12 @@ var listCmd = &cobra.Command{
 			}
 		}
 
-		PrintClusters(clusterList...)
+		noHeaders, err := cmd.Flags().GetBool("no-headers")
+		if err != nil {
+			noHeaders = false
+		}
+
+		PrintClusters(noHeaders, clusterList...)
 
 		saveCacheToDisk()
 	},

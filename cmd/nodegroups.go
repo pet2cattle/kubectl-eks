@@ -72,6 +72,11 @@ var nodegroupsCmd = &cobra.Command{
 			ami = ""
 		}
 
+		noHeaders, err := cmd.Flags().GetBool("no-headers")
+		if err != nil {
+			noHeaders = false
+		}
+
 		if ami != "" {
 			amiInfo, err := ec2.GetAMIInfo(clusterInfo.AWSProfile, clusterInfo.Region, ami)
 			if err != nil {
@@ -79,7 +84,7 @@ var nodegroupsCmd = &cobra.Command{
 				os.Exit(1)
 			}
 
-			PrintAMIs(*amiInfo)
+			PrintAMIs(noHeaders, *amiInfo)
 
 		} else {
 			clusterNGList, err := eks.GetEKSNodeGroups(clusterInfo.AWSProfile, clusterInfo.Region, clusterInfo.ClusterName)
@@ -89,20 +94,20 @@ var nodegroupsCmd = &cobra.Command{
 				return
 			}
 
-			PrintNodeGroup(clusterNGList...)
+			PrintNodeGroup(noHeaders, clusterNGList...)
 		}
 	},
 }
 
 // printResults prints results in a kubectl-style table format
-func PrintAMIs(amiInfos ...ec2.AMIInfo) {
+func PrintAMIs(noHeaders bool, amiInfos ...ec2.AMIInfo) {
 	// Sort the clusterInfos by ClusterName (you can customize the field for sorting)
 	sort.Slice(amiInfos, func(i, j int) bool {
 		return amiInfos[i].Name < amiInfos[j].Name
 	})
 
 	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{})
+	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
 
 	// Create a Table object
 	table := &v1.Table{
@@ -134,14 +139,14 @@ func PrintAMIs(amiInfos ...ec2.AMIInfo) {
 	}
 }
 
-func PrintNodeGroup(ngInfo ...eks.EKSNodeGroupInfo) {
+func PrintNodeGroup(noHeaders bool, ngInfo ...eks.EKSNodeGroupInfo) {
 	// Sort the clusterInfos by ClusterName (you can customize the field for sorting)
 	sort.Slice(ngInfo, func(i, j int) bool {
 		return ngInfo[i].Name < ngInfo[j].Name
 	})
 
 	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{})
+	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
 
 	// Create a Table object
 	table := &v1.Table{

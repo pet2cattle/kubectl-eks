@@ -94,19 +94,24 @@ var stacksCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		PrintStacks(stackList...)
+		noHeaders, err := cmd.Flags().GetBool("no-headers")
+		if err != nil {
+			noHeaders = false
+		}
+
+		PrintStacks(noHeaders, stackList...)
 
 	},
 }
 
-func PrintStacks(stackList ...cf.StackInfo) {
+func PrintStacks(noHeaders bool, stackList ...cf.StackInfo) {
 	// Sort the clusterInfos by ClusterName (you can customize the field for sorting)
 	sort.Slice(stackList, func(i, j int) bool {
 		return stackList[i].Name < stackList[j].Name
 	})
 
 	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{})
+	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
 
 	// Create a Table object
 	table := &v1.Table{

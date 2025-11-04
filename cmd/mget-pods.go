@@ -215,7 +215,12 @@ var multiGetPodsCmd = &cobra.Command{
 			log.Fatalf("Error updating kubeconfig: %v", err)
 		}
 
-		PrintMultiGetPods(k8SClusterPodList...)
+		noHeaders, err := cmd.Flags().GetBool("no-headers")
+		if err != nil {
+			noHeaders = false
+		}
+
+		PrintMultiGetPods(noHeaders, k8SClusterPodList...)
 
 		saveCacheToDisk()
 	},
