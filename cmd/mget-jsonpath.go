@@ -238,7 +238,7 @@ var mJsonpathCmd = &cobra.Command{
 		// Print results
 		noHeaders, _ := cmd.Flags().GetBool("no-headers")
 		if !noHeaders {
-			fmt.Printf("%-20s %-15s %-40s %-20s %-30s %s\n", "PROFILE", "REGION", "CLUSTER", "NAMESPACE", "RESOURCE", "VALUE")
+			fmt.Printf("%-20s %-15s %-40s %-20s %-30s %s\n", "PROFILE", "REGION", "CLUSTER", "NAMESPACE", "NAME", "VALUE")
 		}
 		for _, result := range results {
 			if result.Error != "" {
