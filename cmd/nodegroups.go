@@ -192,5 +192,6 @@ func PrintNodeGroup(noHeaders bool, ngInfo ...eks.EKSNodeGroupInfo) {
 
 func init() {
 	nodegroupsCmd.Flags().StringP("ami", "a", "", "Describe AMI used by the nodegroup")
+
 	rootCmd.AddCommand(nodegroupsCmd)
 }

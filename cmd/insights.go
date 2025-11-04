@@ -170,5 +170,6 @@ func PrintInsights(noHeaders bool, insights ...eks.EKSInsightInfo) {
 
 func init() {
 	insightsCmd.Flags().String("show", "", "Show details for a specific ID")
+
 	rootCmd.AddCommand(insightsCmd)
 }

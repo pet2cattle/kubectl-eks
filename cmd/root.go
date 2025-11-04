@@ -418,7 +418,7 @@ func Execute() {
 func init() {
 	rootCmd.Flags().StringP("region", "r", "", "Switch to the same cluster in a different region")
 	rootCmd.Flags().BoolP("refresh", "u", false, "Do not use cached data, refresh from AWS")
-	rootCmd.Flags().Bool("no-headers", false, "When using the default or custom-column output format, don't print headers (default print headers)")
+	rootCmd.PersistentFlags().Bool("no-headers", false, "When using the default or custom-column output format, don't print headers (default print headers)")
 
 	KubernetesConfigFlags = genericclioptions.NewConfigFlags(true)
 	KubernetesConfigFlags.AddFlags(rootCmd.PersistentFlags())
