@@ -36,6 +36,11 @@ var listCmd = &cobra.Command{
 			name_contains = ""
 		}
 
+		name_not_contains, err := cmd.Flags().GetString("name-not-contains")
+		if err != nil {
+			name_not_contains = ""
+		}
+
 		region, err := cmd.Flags().GetString("region")
 		if err != nil {
 			region = ""
@@ -99,28 +104,26 @@ var listCmd = &cobra.Command{
 				if !exists {
 					fmt.Fprintf(os.Stderr, "Unable to load clusters using profile: %s region: %s\n", profileDetails.Name, hintRegion)
 				} else {
-					if version == "" && name_contains == "" {
+					if version == "" && name_contains == "" && name_not_contains == "" {
 						clusterList = append(clusterList, currentClusterList...)
 					} else {
 						for _, cluster := range currentClusterList {
 							// checking filter criteria
-							shouldAdd := false
+							shouldAdd := true
 
-							if version != "" {
-								if cluster.Version == version {
-									shouldAdd = true
-								}
+							// Check version filter
+							if version != "" && cluster.Version != version {
+								shouldAdd = false
 							}
 
-							if name_contains != "" {
-								if strings.Contains(cluster.ClusterName, name_contains) {
-									if version == "" {
-										shouldAdd = true
-									}
-								} else {
-									// resetting shouldAdd to false if name_contains is set and the cluster name does not contain the string
-									shouldAdd = false
-								}
+							// Check name_contains filter
+							if name_contains != "" && !strings.Contains(cluster.ClusterName, name_contains) {
+								shouldAdd = false
+							}
+
+							// Check name_not_contains filter
+							if name_not_contains != "" && strings.Contains(cluster.ClusterName, name_not_contains) {
+								shouldAdd = false
 							}
 
 							// only add the cluster if it meets the criteria
@@ -205,6 +208,7 @@ func init() {
 	listCmd.Flags().StringP("profile", "p", "", "AWS profile to use")
 	listCmd.Flags().StringP("profile-contains", "q", "", "AWS profile contains string")
 	listCmd.Flags().StringP("name-contains", "c", "", "Cluster name contains string")
+	listCmd.Flags().StringP("name-not-contains", "x", "", "Cluster name does not contain string")
 	listCmd.Flags().StringP("region", "r", "", "AWS region to use")
 	listCmd.Flags().StringP("version", "v", "", "Filter by EKS version")
 
