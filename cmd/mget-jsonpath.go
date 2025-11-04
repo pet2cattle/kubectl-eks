@@ -47,6 +47,7 @@ var mJsonpathCmd = &cobra.Command{
 		name_not_contains, _ := cmd.Flags().GetString("name-not-contains")
 		region, _ := cmd.Flags().GetString("region")
 		version, _ := cmd.Flags().GetString("version")
+		startsWith, _ := cmd.Flags().GetString("resource-starts-with")
 
 		clusterList, err := LoadClusterList([]string{}, profile, profile_contains, name_contains, name_not_contains, region, version)
 		if err != nil {
@@ -161,8 +162,23 @@ var mJsonpathCmd = &cobra.Command{
 						})
 						continue
 					}
-					objects = objs
-					resourceNames = names
+
+					// Filter by starts-with if specified
+					if startsWith != "" {
+						filteredObjs := []interface{}{}
+						filteredNames := []string{}
+						for i, name := range names {
+							if strings.HasPrefix(name, startsWith) {
+								filteredObjs = append(filteredObjs, objs[i])
+								filteredNames = append(filteredNames, name)
+							}
+						}
+						objects = filteredObjs
+						resourceNames = filteredNames
+					} else {
+						objects = objs
+						resourceNames = names
+					}
 				}
 
 				// Process each object
@@ -389,6 +405,7 @@ func init() {
 	mJsonpathCmd.Flags().StringP("version", "v", "", "Filter by EKS version")
 	mJsonpathCmd.Flags().StringP("namespace", "n", "", "Kubernetes namespace")
 	mJsonpathCmd.Flags().BoolP("all-namespaces", "A", false, "Query all Kubernetes namespaces")
+	mJsonpathCmd.Flags().StringP("resource-starts-with", "s", "", "Filter resources that start with this string")
 	mJsonpathCmd.Flags().Bool("no-headers", false, "Don't print headers")
 
 	rootCmd.AddCommand(mJsonpathCmd)
