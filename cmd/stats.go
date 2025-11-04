@@ -29,6 +29,11 @@ var statsCmd = &cobra.Command{
 			name_contains = ""
 		}
 
+		name_not_contains, err := cmd.Flags().GetString("name-not-contains")
+		if err != nil {
+			name_not_contains = ""
+		}
+
 		region, err := cmd.Flags().GetString("region")
 		if err != nil {
 			region = ""
@@ -39,7 +44,7 @@ var statsCmd = &cobra.Command{
 			version = ""
 		}
 
-		clusterList, err := LoadClusterList(args, profile, profile_contains, name_contains, region, version)
+		clusterList, err := LoadClusterList(args, profile, profile_contains, name_contains, name_not_contains, region, version)
 		if err != nil {
 			log.Fatalf("Error loading cluster list: %v", err)
 		}
@@ -93,6 +98,7 @@ func init() {
 	statsCmd.Flags().StringP("profile", "p", "", "AWS profile to use")
 	statsCmd.Flags().StringP("profile-contains", "q", "", "AWS profile contains string")
 	statsCmd.Flags().StringP("name-contains", "c", "", "Cluster name contains string")
+	statsCmd.Flags().StringP("name-not-contains", "x", "", "Cluster name does not contain string")
 	statsCmd.Flags().StringP("region", "r", "", "AWS region to use")
 	statsCmd.Flags().StringP("version", "v", "", "Filter by EKS version")
 

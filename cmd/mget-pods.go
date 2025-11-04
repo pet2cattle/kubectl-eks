@@ -14,11 +14,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func LoadClusterList(args []string, profile, profile_contains, name_contains, region, version string) ([]ClusterInfo, error) {
+func LoadClusterList(args []string, profile, profile_contains, name_contains, name_not_contains, region, version string) ([]ClusterInfo, error) {
 	clusterList := []ClusterInfo{}
 
 	// if filters are empty, use current cluster
-	if profile == "" && profile_contains == "" && name_contains == "" && region == "" && version == "" {
+	if profile == "" && profile_contains == "" && name_contains == "" && name_not_contains == "" && region == "" && version == "" {
 		clusterArn := ""
 
 		// Load Kubernetes configuration
@@ -97,28 +97,26 @@ func LoadClusterList(args []string, profile, profile_contains, name_contains, re
 				if !exists {
 					fmt.Fprintf(os.Stderr, "Unable to load clusters using profile: %s region: %s\n", profileDetails.Name, hintRegion)
 				} else {
-					if version == "" && name_contains == "" {
+					if version == "" && name_contains == "" && name_not_contains == "" {
 						clusterList = append(clusterList, currentClusterList...)
 					} else {
 						for _, cluster := range currentClusterList {
 							// checking filter criteria
-							shouldAdd := false
+							shouldAdd := true
 
-							if version != "" {
-								if cluster.Version == version {
-									shouldAdd = true
-								}
+							// Check version filter
+							if version != "" && cluster.Version != version {
+								shouldAdd = false
 							}
 
-							if name_contains != "" {
-								if strings.Contains(cluster.ClusterName, name_contains) {
-									if version == "" {
-										shouldAdd = true
-									}
-								} else {
-									// resetting shouldAdd to false if name_contains is set and the cluster name does not contain the string
-									shouldAdd = false
-								}
+							// Check name_contains filter
+							if name_contains != "" && !strings.Contains(cluster.ClusterName, name_contains) {
+								shouldAdd = false
+							}
+
+							// Check name_not_contains filter
+							if name_not_contains != "" && strings.Contains(cluster.ClusterName, name_not_contains) {
+								shouldAdd = false
 							}
 
 							// only add the cluster if it meets the criteria
@@ -156,6 +154,11 @@ var multiGetPodsCmd = &cobra.Command{
 			name_contains = ""
 		}
 
+		name_not_contains, err := cmd.Flags().GetString("name-not-contains")
+		if err != nil {
+			name_not_contains = ""
+		}
+
 		region, err := cmd.Flags().GetString("region")
 		if err != nil {
 			region = ""
@@ -166,7 +169,7 @@ var multiGetPodsCmd = &cobra.Command{
 			version = ""
 		}
 
-		clusterList, err := LoadClusterList(args, profile, profile_contains, name_contains, region, version)
+		clusterList, err := LoadClusterList(args, profile, profile_contains, name_contains, name_not_contains, region, version)
 		if err != nil {
 			log.Fatalf("Error loading cluster list: %v", err)
 		}
@@ -230,6 +233,7 @@ func init() {
 	multiGetPodsCmd.Flags().StringP("profile", "p", "", "AWS profile to use")
 	multiGetPodsCmd.Flags().StringP("profile-contains", "q", "", "AWS profile contains string")
 	multiGetPodsCmd.Flags().StringP("name-contains", "c", "", "Cluster name contains string")
+	multiGetPodsCmd.Flags().StringP("name-not-contains", "x", "", "Cluster name does not contain string")
 	multiGetPodsCmd.Flags().StringP("region", "r", "", "AWS region to use")
 	multiGetPodsCmd.Flags().StringP("version", "v", "", "Filter by EKS version")
 	multiGetPodsCmd.Flags().StringP("namespace", "n", "", "Filter by Kubernetes namespace")
