@@ -1,6 +1,6 @@
 # kubectl-eks
 
-A kubectl plugin for **managing Amazon EKS clusters**. This plugin provides convenient commands for listing, inspecting, and switching between EKS clusters and their associated resources.
+A kubectl plugin for **managing Amazon EKS clusters**. This plugin provides convenient commands for listing, inspecting, and switching between EKS clusters.
 
 <!-- vscode-markdown-toc -->
 * [Prerequisites](#Prerequisites)
