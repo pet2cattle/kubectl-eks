@@ -361,6 +361,7 @@ func getNamespaces(clientset *kubernetes.Clientset, clientConfig clientcmd.Clien
 	return namespaces
 }
 
+// Add to getResource function:
 func getResource(clientset *kubernetes.Clientset, resourceType, namespace, name string) (interface{}, string, string, error) {
 	switch resourceType {
 	case "pod", "pods", "po":
@@ -384,11 +385,15 @@ func getResource(clientset *kubernetes.Clientset, resourceType, namespace, name 
 	case "secret", "secrets":
 		secret, err := clientset.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		return secret, secret.Name, "Secret", err
+	case "poddisruptionbudget", "poddisruptionbudgets", "pdb":
+		pdb, err := clientset.PolicyV1().PodDisruptionBudgets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		return pdb, pdb.Name, "PodDisruptionBudget", err
 	default:
 		return nil, "", "", fmt.Errorf("unsupported resource type: %s", resourceType)
 	}
 }
 
+// Add to listResources function:
 func listResources(clientset *kubernetes.Clientset, resourceType, namespace string) ([]interface{}, []string, []string, error) {
 	var objects []interface{}
 	var names []string
@@ -464,6 +469,16 @@ func listResources(clientset *kubernetes.Clientset, resourceType, namespace stri
 			objects = append(objects, &list.Items[i])
 			names = append(names, list.Items[i].Name)
 			kinds = append(kinds, "Secret")
+		}
+	case "poddisruptionbudget", "poddisruptionbudgets", "pdb":
+		list, err := clientset.PolicyV1().PodDisruptionBudgets(namespace).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		for i := range list.Items {
+			objects = append(objects, &list.Items[i])
+			names = append(names, list.Items[i].Name)
+			kinds = append(kinds, "PodDisruptionBudget")
 		}
 	default:
 		return nil, nil, nil, fmt.Errorf("unsupported resource type: %s", resourceType)
