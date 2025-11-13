@@ -1,27 +1,59 @@
-## kubectl-eks mget-pods
+## kubectl-eks mget
 
-Get a list of pods from multiple clusters
+Get resources from multiple clusters
 
 ### Synopsis
 
-Get a list of pods from the current cluster or all the clusters that match a filter
+Get Kubernetes resources from all clusters that match a filter.
+Similar to 'kubectl get' but works across multiple EKS clusters.
+
+Supports output formats:
+  -o wide          Additional details
+  -o json          JSON output
+  -o yaml          YAML output
+  -o jsonpath=...  Extract specific fields using JSONPath
 
 ```
-kubectl-eks mget-pods [flags]
+kubectl-eks mget [resource-type] [resource-name] [flags]
+```
+
+### Examples
+
+```
+  # List all pods across clusters
+  kubectl eks mget pods
+
+  # List pods in specific namespace
+  kubectl eks mget pods -n kube-system
+
+  # Get a specific deployment
+  kubectl eks mget deployment my-app
+
+  # Extract specific fields with JSONPath
+  kubectl eks mget pods -o jsonpath='{.spec.dnsPolicy}'
+  
+  # List deployments with additional details
+  kubectl eks mget deployments -o wide
+  
+  # Filter clusters and resources
+  kubectl eks mget pods --name-contains prod --resource-starts-with nginx
 ```
 
 ### Options
 
 ```
-  -A, --all-namespaces             Filter by all Kubernetes namespaces
-  -h, --help                       help for mget-pods
-  -c, --name-contains string       Cluster name contains string
-  -x, --name-not-contains string   Cluster name does not contain string
-  -n, --namespace string           Filter by Kubernetes namespace
-  -p, --profile string             AWS profile to use
-  -q, --profile-contains string    AWS profile contains string
-  -r, --region string              AWS region to use
-  -v, --version string             Filter by EKS version
+  -A, --all-namespaces                Query all Kubernetes namespaces
+  -h, --help                          help for mget
+  -c, --name-contains string          Cluster name contains string
+  -x, --name-not-contains string      Cluster name does not contain string
+  -n, --namespace string              Kubernetes namespace
+      --no-headers                    Don't print headers
+  -o, --output string                 Output format: wide|json|yaml|jsonpath=...
+  -p, --profile string                AWS profile to use
+  -q, --profile-contains string       AWS profile contains string
+  -r, --region string                 AWS region to use
+  -w, --resource-starts-with string   Filter resources that start with this string
+  -v, --version string                Filter by EKS version
 ```
 
 ### Options inherited from parent commands
@@ -39,7 +71,6 @@ kubectl-eks mget-pods [flags]
       --disable-compression            If true, opt-out of response compression for all requests to the server
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to the kubeconfig file to use for CLI requests.
-      --no-headers                     When using the default or custom-column output format, don't print headers (default print headers)
       --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
   -s, --server string                  The address and port of the Kubernetes API server
       --tls-server-name string         Server name to use for server certificate validation. If it is not provided, the hostname used to contact the server is used

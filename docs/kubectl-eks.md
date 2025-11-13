@@ -61,8 +61,7 @@ kubectl-eks [flags]
 * [kubectl-eks completion](kubectl-eks_completion.md)	 - Generate the autocompletion script for the specified shell
 * [kubectl-eks insights](kubectl-eks_insights.md)	 - Get insights about an EKS cluster
 * [kubectl-eks list](kubectl-eks_list.md)	 - List all EKS clusters in your AWS account
-* [kubectl-eks mget-jsonpath](kubectl-eks_mget-jsonpath.md)	 - Extract JSONPath values from resources across multiple clusters
-* [kubectl-eks mget-pods](kubectl-eks_mget-pods.md)	 - Get a list of pods from multiple clusters
+* [kubectl-eks mget](kubectl-eks_mget.md)	 - Get resources from multiple clusters
 * [kubectl-eks nodegroups](kubectl-eks_nodegroups.md)	 - List EKS nodegroups
 * [kubectl-eks stacks](kubectl-eks_stacks.md)	 - Get CF stacks
 * [kubectl-eks stats](kubectl-eks_stats.md)	 - Get EKS cluster stats

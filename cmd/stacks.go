@@ -3,13 +3,12 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/pet2cattle/kubectl-eks/pkg/cf"
+	"github.com/pet2cattle/kubectl-eks/pkg/data"
+	"github.com/pet2cattle/kubectl-eks/pkg/printutils"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/printers"
 )
 
 var stacksCmd = &cobra.Command{
@@ -50,9 +49,9 @@ var stacksCmd = &cobra.Command{
 
 		loadCacheFromDisk()
 		if CachedData == nil {
-			CachedData = &KubeCtlEksCache{
-				ClusterByARN: make(map[string]ClusterInfo),
-				ClusterList:  make(map[string]map[string][]ClusterInfo),
+			CachedData = &data.KubeCtlEksCache{
+				ClusterByARN: make(map[string]data.ClusterInfo),
+				ClusterList:  make(map[string]map[string][]data.ClusterInfo),
 			}
 		}
 
@@ -70,9 +69,9 @@ var stacksCmd = &cobra.Command{
 
 		// validate cached data, if invalid, refresh
 		if clusterInfo.Arn != clusterArn {
-			CachedData = &KubeCtlEksCache{
-				ClusterByARN: make(map[string]ClusterInfo),
-				ClusterList:  make(map[string]map[string][]ClusterInfo),
+			CachedData = &data.KubeCtlEksCache{
+				ClusterByARN: make(map[string]data.ClusterInfo),
+				ClusterList:  make(map[string]map[string][]data.ClusterInfo),
 			}
 			foundClusterInfo := loadClusterByArn(clusterArn)
 			if foundClusterInfo == nil {
@@ -99,46 +98,8 @@ var stacksCmd = &cobra.Command{
 			noHeaders = false
 		}
 
-		PrintStacks(noHeaders, stackList...)
-
+		printutils.PrintStacks(noHeaders, stackList...)
 	},
-}
-
-func PrintStacks(noHeaders bool, stackList ...cf.StackInfo) {
-	// Sort the clusterInfos by ClusterName (you can customize the field for sorting)
-	sort.Slice(stackList, func(i, j int) bool {
-		return stackList[i].Name < stackList[j].Name
-	})
-
-	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
-
-	// Create a Table object
-	table := &v1.Table{
-		ColumnDefinitions: []v1.TableColumnDefinition{
-			// {Name: "AWS ACCOUNT ID", Type: "string"},
-			{Name: "NAME", Type: "string"},
-			{Name: "STATUS", Type: "string"},
-		},
-	}
-
-	// Populate rows with data from the variadic ClusterInfo
-	for _, stackInfo := range stackList {
-		table.Rows = append(table.Rows, v1.TableRow{
-			Cells: []interface{}{
-				// clusterInfo.AWSAccountID,
-				stackInfo.Name,
-				stackInfo.Status,
-			},
-		})
-	}
-
-	// Print the table
-	err := printer.PrintObj(table, os.Stdout)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
-		os.Exit(1)
-	}
 }
 
 func init() {

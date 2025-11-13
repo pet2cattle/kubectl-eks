@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
+	"github.com/pet2cattle/kubectl-eks/pkg/printutils"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/printers"
 )
 
 var insightsCmd = &cobra.Command{
@@ -86,7 +84,7 @@ var insightsCmd = &cobra.Command{
 				noHeaders = false
 			}
 
-			PrintInsights(noHeaders, insightsList...)
+			printutils.PrintInsights(noHeaders, insightsList...)
 		} else {
 			insightItem, err := eks.DescribeEKSInsight(clusterInfo.AWSProfile, clusterInfo.Region, clusterInfo.ClusterName, showID)
 
@@ -127,45 +125,6 @@ var insightsCmd = &cobra.Command{
 			}
 		}
 	},
-}
-
-func PrintInsights(noHeaders bool, insights ...eks.EKSInsightInfo) {
-	// Sort the clusterInfos by ClusterName (you can customize the field for sorting)
-	sort.Slice(insights, func(i, j int) bool {
-		return insights[i].ID < insights[j].ID
-	})
-
-	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
-
-	// Create a Table object
-	table := &v1.Table{
-		ColumnDefinitions: []v1.TableColumnDefinition{
-			{Name: "ID", Type: "string"},
-			{Name: "CATEGORY", Type: "string"},
-			{Name: "STATUS", Type: "string"},
-			{Name: "REASON", Type: "string"},
-		},
-	}
-
-	// Populate rows with data from the variadic ClusterInfo
-	for _, eachInsight := range insights {
-		table.Rows = append(table.Rows, v1.TableRow{
-			Cells: []interface{}{
-				eachInsight.ID,
-				eachInsight.Category,
-				eachInsight.Status,
-				eachInsight.Reason,
-			},
-		})
-	}
-
-	// Print the table
-	err := printer.PrintObj(table, os.Stdout)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
-		os.Exit(1)
-	}
 }
 
 func init() {

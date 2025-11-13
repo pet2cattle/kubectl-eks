@@ -6,19 +6,11 @@ import (
 	"log"
 	"os"
 	"strings"
+
+	"github.com/pet2cattle/kubectl-eks/pkg/data"
 )
 
-type AWSProfile struct {
-	Name           string
-	DefaultRegion  string
-	HintEKSRegions []string
-}
-
-type AWSConfig struct {
-	Profiles map[string]AWSProfile
-}
-
-var ConfigData *AWSConfig = nil
+var ConfigData *data.AWSConfig = nil
 
 func loadAWSConfig() {
 
@@ -34,8 +26,8 @@ func loadAWSConfig() {
 	}
 	defer file.Close()
 
-	awsConfig := AWSConfig{Profiles: make(map[string]AWSProfile)}
-	awsConfig.Profiles[""] = AWSProfile{}
+	awsConfig := data.AWSConfig{Profiles: make(map[string]data.AWSProfile)}
+	awsConfig.Profiles[""] = data.AWSProfile{}
 
 	// Read the file
 	scanner := bufio.NewScanner(file)
@@ -78,7 +70,7 @@ func loadAWSConfig() {
 		// [profile example]
 		if strings.HasPrefix(line, "[profile ") {
 			currentProfile = strings.TrimSuffix(strings.TrimPrefix(line, "[profile "), "]")
-			awsConfig.Profiles[currentProfile] = AWSProfile{Name: currentProfile}
+			awsConfig.Profiles[currentProfile] = data.AWSProfile{Name: currentProfile}
 		}
 
 		parts := strings.Split(line, "=")
@@ -98,14 +90,14 @@ func loadAWSConfig() {
 	ConfigData = &awsConfig
 }
 
-func GetAWSProfilesWithEKSHints() []AWSProfile {
+func GetAWSProfilesWithEKSHints() []data.AWSProfile {
 	if ConfigData == nil {
 		loadAWSConfig()
 	}
 
 	// fmt.Printf("ConfigData: %+v\n", ConfigData)
 
-	profiles := []AWSProfile{}
+	profiles := []data.AWSProfile{}
 	for _, profileDetails := range ConfigData.Profiles {
 		if len(profileDetails.HintEKSRegions) > 0 {
 			profiles = append(profiles, profileDetails)

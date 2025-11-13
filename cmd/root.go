@@ -7,33 +7,19 @@ import (
 	"regexp"
 
 	"github.com/pet2cattle/kubectl-eks/pkg/awsconfig"
+	"github.com/pet2cattle/kubectl-eks/pkg/data"
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
 	"github.com/pet2cattle/kubectl-eks/pkg/k8s"
+	"github.com/pet2cattle/kubectl-eks/pkg/printutils"
 	"github.com/pet2cattle/kubectl-eks/pkg/sts"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-type ClusterInfo struct {
-	ClusterName  string
-	Region       string
-	AWSProfile   string
-	AWSAccountID string
-	Status       string
-	Version      string
-	Arn          string
-	CreatedAt    string
-}
-
-type KubeCtlEksCache struct {
-	ClusterByARN map[string]ClusterInfo
-	ClusterList  map[string]map[string][]ClusterInfo
-}
-
 var KubernetesConfigFlags *genericclioptions.ConfigFlags
 
 var HomeDir string
-var CachedData *KubeCtlEksCache = nil
+var CachedData *data.KubeCtlEksCache = nil
 
 func loadCacheFromDisk() {
 	// Load configuration from file
@@ -41,7 +27,7 @@ func loadCacheFromDisk() {
 	configData, err := os.ReadFile(configFile)
 	if err == nil {
 		// load json data into ConfigData
-		CachedData = &KubeCtlEksCache{}
+		CachedData = &data.KubeCtlEksCache{}
 		err = json.Unmarshal(configData, CachedData)
 		if err != nil {
 			fmt.Println("Error loading configuration file")
@@ -65,9 +51,9 @@ func saveCacheToDisk() {
 	}
 }
 
-func loadClusterByArn(clusterArn string) *ClusterInfo {
+func loadClusterByArn(clusterArn string) *data.ClusterInfo {
 
-	clusterInfo := ClusterInfo{}
+	clusterInfo := data.ClusterInfo{}
 
 	// check if it is an ARN
 	arnRegex := `^arn:aws:eks:([a-z0-9-]+):(\d{12}):cluster/([a-zA-Z0-9-]+)$`
@@ -117,7 +103,7 @@ func loadClusterByArn(clusterArn string) *ClusterInfo {
 	}
 
 	// create clusterInfo
-	clusterInfo = ClusterInfo{ClusterName: matches[3], Region: matches[1], AWSProfile: foundAwsProfile, AWSAccountID: matches[2]}
+	clusterInfo = data.ClusterInfo{ClusterName: matches[3], Region: matches[1], AWSProfile: foundAwsProfile, AWSAccountID: matches[2]}
 
 	clusterDesc, err := eks.DescribeCluster(clusterInfo.AWSProfile, clusterInfo.Region, clusterInfo.ClusterName)
 	if err != nil || clusterDesc == nil {
@@ -130,11 +116,11 @@ func loadClusterByArn(clusterArn string) *ClusterInfo {
 	}
 
 	if CachedData == nil {
-		CachedData = &KubeCtlEksCache{}
+		CachedData = &data.KubeCtlEksCache{}
 	}
 
 	if CachedData.ClusterByARN == nil {
-		CachedData.ClusterByARN = make(map[string]ClusterInfo)
+		CachedData.ClusterByARN = make(map[string]data.ClusterInfo)
 	}
 
 	// save update loaded configuration
@@ -214,9 +200,9 @@ Prerequisites:
 		} else {
 			loadCacheFromDisk()
 			if CachedData == nil {
-				CachedData = &KubeCtlEksCache{
-					ClusterByARN: make(map[string]ClusterInfo),
-					ClusterList:  make(map[string]map[string][]ClusterInfo),
+				CachedData = &data.KubeCtlEksCache{
+					ClusterByARN: make(map[string]data.ClusterInfo),
+					ClusterList:  make(map[string]map[string][]data.ClusterInfo),
 				}
 			}
 
@@ -234,9 +220,9 @@ Prerequisites:
 
 			// validate cached data, if invalid, refresh
 			if clusterInfo.Arn != clusterArn {
-				CachedData = &KubeCtlEksCache{
-					ClusterByARN: make(map[string]ClusterInfo),
-					ClusterList:  make(map[string]map[string][]ClusterInfo),
+				CachedData = &data.KubeCtlEksCache{
+					ClusterByARN: make(map[string]data.ClusterInfo),
+					ClusterList:  make(map[string]map[string][]data.ClusterInfo),
 				}
 				foundClusterInfo := loadClusterByArn(clusterArn)
 				if foundClusterInfo == nil {
@@ -255,7 +241,7 @@ Prerequisites:
 			if clusterInfo.Arn != clusterArn {
 				fmt.Printf("%s\n", clusterArn)
 			} else {
-				PrintClusters(noHeaders, clusterInfo)
+				printutils.PrintClusters(noHeaders, clusterInfo)
 			}
 
 			// save data to configuration

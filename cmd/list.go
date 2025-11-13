@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"github.com/pet2cattle/kubectl-eks/pkg/awsconfig"
+	"github.com/pet2cattle/kubectl-eks/pkg/data"
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
+	"github.com/pet2cattle/kubectl-eks/pkg/printutils"
 	"github.com/pet2cattle/kubectl-eks/pkg/sts"
 	"github.com/spf13/cobra"
 )
@@ -65,17 +67,17 @@ You can filter by cluster name, region, version, or AWS profile.`,
 
 		loadCacheFromDisk()
 		if CachedData == nil {
-			CachedData = &KubeCtlEksCache{
-				ClusterByARN: make(map[string]ClusterInfo),
-				ClusterList:  make(map[string]map[string][]ClusterInfo),
+			CachedData = &data.KubeCtlEksCache{
+				ClusterByARN: make(map[string]data.ClusterInfo),
+				ClusterList:  make(map[string]map[string][]data.ClusterInfo),
 			}
 		}
 
 		if refresh {
-			CachedData.ClusterList = make(map[string]map[string][]ClusterInfo)
+			CachedData.ClusterList = make(map[string]map[string][]data.ClusterInfo)
 		}
 
-		clusterList := []ClusterInfo{}
+		clusterList := []data.ClusterInfo{}
 
 		awsProfiles := awsconfig.GetAWSProfilesWithEKSHints()
 		for _, profileDetails := range awsProfiles {
@@ -93,11 +95,11 @@ You can filter by cluster name, region, version, or AWS profile.`,
 				if refresh {
 					_, exists := CachedData.ClusterList[profileDetails.Name]
 					if !exists {
-						CachedData.ClusterList[profileDetails.Name] = make(map[string][]ClusterInfo)
+						CachedData.ClusterList[profileDetails.Name] = make(map[string][]data.ClusterInfo)
 					}
 					_, exists = CachedData.ClusterList[profileDetails.Name][hintRegion]
 					if !exists {
-						CachedData.ClusterList[profileDetails.Name][hintRegion] = []ClusterInfo{}
+						CachedData.ClusterList[profileDetails.Name][hintRegion] = []data.ClusterInfo{}
 					}
 					loadClusters(profileDetails.Name, hintRegion)
 				} else {
@@ -154,7 +156,7 @@ You can filter by cluster name, region, version, or AWS profile.`,
 			noHeaders = false
 		}
 
-		PrintClusters(noHeaders, clusterList...)
+		printutils.PrintClusters(noHeaders, clusterList...)
 
 		saveCacheToDisk()
 	},
@@ -180,7 +182,7 @@ func loadClusters(profile, region string) {
 			continue
 		}
 
-		clusterData := ClusterInfo{
+		clusterData := data.ClusterInfo{
 			ClusterName:  *cluster,
 			Region:       region,
 			AWSProfile:   profile,
@@ -201,12 +203,12 @@ func loadClusters(profile, region string) {
 
 		_, exists := CachedData.ClusterList[profile]
 		if !exists {
-			CachedData.ClusterList[profile] = make(map[string][]ClusterInfo)
+			CachedData.ClusterList[profile] = make(map[string][]data.ClusterInfo)
 		}
 
 		_, exists = CachedData.ClusterList[profile][region]
 		if !exists {
-			CachedData.ClusterList[profile][region] = []ClusterInfo{}
+			CachedData.ClusterList[profile][region] = []data.ClusterInfo{}
 		}
 
 		// fmt.Printf("Adding cluster %s to profile %s and region %s\n", clusterData.ClusterName, profile, region)

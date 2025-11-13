@@ -4,14 +4,12 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/pet2cattle/kubectl-eks/pkg/ec2"
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
+	"github.com/pet2cattle/kubectl-eks/pkg/printutils"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/printers"
 )
 
 var nodegroupsCmd = &cobra.Command{
@@ -84,7 +82,7 @@ var nodegroupsCmd = &cobra.Command{
 				os.Exit(1)
 			}
 
-			PrintAMIs(noHeaders, *amiInfo)
+			printutils.PrintAMIs(noHeaders, *amiInfo)
 
 		} else {
 			clusterNGList, err := eks.GetEKSNodeGroups(clusterInfo.AWSProfile, clusterInfo.Region, clusterInfo.ClusterName)
@@ -94,100 +92,9 @@ var nodegroupsCmd = &cobra.Command{
 				return
 			}
 
-			PrintNodeGroup(noHeaders, clusterNGList...)
+			printutils.PrintNodeGroup(noHeaders, clusterNGList...)
 		}
 	},
-}
-
-// printResults prints results in a kubectl-style table format
-func PrintAMIs(noHeaders bool, amiInfos ...ec2.AMIInfo) {
-	// Sort the clusterInfos by ClusterName (you can customize the field for sorting)
-	sort.Slice(amiInfos, func(i, j int) bool {
-		return amiInfos[i].Name < amiInfos[j].Name
-	})
-
-	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
-
-	// Create a Table object
-	table := &v1.Table{
-		ColumnDefinitions: []v1.TableColumnDefinition{
-			{Name: "NAME", Type: "string"},
-			{Name: "ARCHITECTURE", Type: "string"},
-			{Name: "STATE", Type: "string"},
-			{Name: "DEPRECATION TIME", Type: "string"},
-		},
-	}
-
-	// Populate rows with data from the variadic ClusterInfo
-	for _, amiInfo := range amiInfos {
-		table.Rows = append(table.Rows, v1.TableRow{
-			Cells: []interface{}{
-				amiInfo.Name,
-				amiInfo.Architecture,
-				amiInfo.State,
-				amiInfo.DeprecationTime,
-			},
-		})
-	}
-
-	// Print the table
-	err := printer.PrintObj(table, os.Stdout)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
-		os.Exit(1)
-	}
-}
-
-func PrintNodeGroup(noHeaders bool, ngInfo ...eks.EKSNodeGroupInfo) {
-	// Sort the clusterInfos by ClusterName (you can customize the field for sorting)
-	sort.Slice(ngInfo, func(i, j int) bool {
-		return ngInfo[i].Name < ngInfo[j].Name
-	})
-
-	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
-
-	// Create a Table object
-	table := &v1.Table{
-		ColumnDefinitions: []v1.TableColumnDefinition{
-			{Name: "NAME", Type: "string"},
-			{Name: "CAPACITY TYPE", Type: "string"},
-			{Name: "RELEASE VERSION", Type: "string"},
-			{Name: "LAUNCH TEMPLATE", Type: "string"},
-			{Name: "INSTANCE TYPE", Type: "string"},
-			{Name: "DESIRED CAPACITY", Type: "string"},
-			{Name: "MAX CAPACITY", Type: "string"},
-			{Name: "MIN CAPACITY", Type: "string"},
-			{Name: "VERSION", Type: "string"},
-			{Name: "STATUS", Type: "string"},
-		},
-	}
-
-	// Populate rows with data from the variadic ClusterInfo
-	for _, eachNG := range ngInfo {
-		table.Rows = append(table.Rows, v1.TableRow{
-			Cells: []interface{}{
-				eachNG.Name,
-				eachNG.CapacityType,
-				eachNG.ReleaseVersion,
-				eachNG.LaunchTemplate,
-				eachNG.InstanceType,
-				eachNG.DesiredCapacity,
-				eachNG.MaxCapacity,
-				eachNG.MinCapacity,
-				eachNG.Version,
-				eachNG.Status,
-			},
-		})
-	}
-
-	// Print the table
-	err := printer.PrintObj(table, os.Stdout)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
-		os.Exit(1)
-	}
 }
 
 func init() {

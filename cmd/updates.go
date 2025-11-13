@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
+	"github.com/pet2cattle/kubectl-eks/pkg/printutils"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/printers"
 )
 
 var updatesCmd = &cobra.Command{
@@ -78,46 +76,8 @@ var updatesCmd = &cobra.Command{
 			noHeaders = false
 		}
 
-		PrintUpdates(noHeaders, updateList...)
-
+		printutils.PrintUpdates(noHeaders, updateList...)
 	},
-}
-
-func PrintUpdates(noHeaders bool, updateList ...eks.EKSUpdateInfo) {
-	// Sort the clusterInfos by ClusterName (you can customize the field for sorting)
-	sort.Slice(updateList, func(i, j int) bool {
-		return updateList[i].Type < updateList[j].Type
-	})
-
-	// Create a table printer
-	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
-
-	// Create a Table object
-	table := &v1.Table{
-		ColumnDefinitions: []v1.TableColumnDefinition{
-			{Name: "TYPE", Type: "string"},
-			{Name: "STATUS", Type: "string"},
-			{Name: "ERRORS", Type: "string"},
-		},
-	}
-
-	// Populate rows with data from the variadic ClusterInfo
-	for _, eachUpdate := range updateList {
-		table.Rows = append(table.Rows, v1.TableRow{
-			Cells: []interface{}{
-				eachUpdate.Type,
-				eachUpdate.Status,
-				strings.Join(eachUpdate.Errors, ", "),
-			},
-		})
-	}
-
-	// Print the table
-	err := printer.PrintObj(table, os.Stdout)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
-		os.Exit(1)
-	}
 }
 
 func init() {

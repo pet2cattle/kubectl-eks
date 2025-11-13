@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/pet2cattle/kubectl-eks/pkg/data"
 	"github.com/spf13/cobra"
 )
 
@@ -40,9 +41,9 @@ var profileCmd = &cobra.Command{
 
 		loadCacheFromDisk()
 		if CachedData == nil {
-			CachedData = &KubeCtlEksCache{
-				ClusterByARN: make(map[string]ClusterInfo),
-				ClusterList:  make(map[string]map[string][]ClusterInfo),
+			CachedData = &data.KubeCtlEksCache{
+				ClusterByARN: make(map[string]data.ClusterInfo),
+				ClusterList:  make(map[string]map[string][]data.ClusterInfo),
 			}
 		}
 
@@ -60,9 +61,9 @@ var profileCmd = &cobra.Command{
 
 		// validate cached data, if invalid, refresh
 		if clusterInfo.Arn != clusterArn {
-			CachedData = &KubeCtlEksCache{
-				ClusterByARN: make(map[string]ClusterInfo),
-				ClusterList:  make(map[string]map[string][]ClusterInfo),
+			CachedData = &data.KubeCtlEksCache{
+				ClusterByARN: make(map[string]data.ClusterInfo),
+				ClusterList:  make(map[string]map[string][]data.ClusterInfo),
 			}
 			foundClusterInfo := loadClusterByArn(clusterArn)
 			if foundClusterInfo == nil {

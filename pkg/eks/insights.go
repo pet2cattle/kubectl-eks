@@ -2,43 +2,14 @@ package eks
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/pet2cattle/kubectl-eks/pkg/data"
 )
 
-type ClientStat struct {
-	LastRequestTime            time.Time `json:"lastRequestTime"`
-	NumberOfRequestsLast30Days int64     `json:"numberOfRequestsLast30Days"`
-	UserAgent                  string    `json:"userAgent"`
-}
-
-type DeprecationDetail struct {
-	ClientStats                    []ClientStat `json:"clientStats"`
-	ReplacedWith                   string       `json:"replacedWith"`
-	StartServingReplacementVersion string       `json:"startServingReplacementVersion"`
-	StopServingVersion             string       `json:"stopServingVersion"`
-	Usage                          string       `json:"usage"`
-}
-
-type CategorySpecificSummary struct {
-	DeprecationDetails []DeprecationDetail `json:"deprecationDetails"`
-}
-
-type EKSInsightInfo struct {
-	ID             string
-	Description    string
-	Category       string
-	Status         string
-	Recommendation string
-	Reason         string
-	Summary        *CategorySpecificSummary
-	AdditionalInfo *map[string]*string
-}
-
-func DescribeEKSInsight(profile, region, clusterName, insightID string) (*EKSInsightInfo, error) {
+func DescribeEKSInsight(profile, region, clusterName, insightID string) (*data.EKSInsightInfo, error) {
 	// Create a new session using the profile and region
 	sess, err := session.NewSessionWithOptions(session.Options{
 		Profile:           profile,
@@ -66,13 +37,13 @@ func DescribeEKSInsight(profile, region, clusterName, insightID string) (*EKSIns
 		return nil, fmt.Errorf("insight %s not found for cluster %s in region %s", insightID, clusterName, region)
 	}
 
-	var summary CategorySpecificSummary
+	var summary data.CategorySpecificSummary
 
 	for _, eachDeprecationDetail := range descInsight.Insight.CategorySpecificSummary.DeprecationDetails {
 		if eachDeprecationDetail == nil {
 			continue
 		}
-		var deprecationDetail DeprecationDetail
+		var deprecationDetail data.DeprecationDetail
 		deprecationDetail.ReplacedWith = aws.StringValue(eachDeprecationDetail.ReplacedWith)
 		deprecationDetail.StartServingReplacementVersion = aws.StringValue(eachDeprecationDetail.StartServingReplacementVersion)
 		deprecationDetail.StopServingVersion = aws.StringValue(eachDeprecationDetail.StopServingVersion)
@@ -82,7 +53,7 @@ func DescribeEKSInsight(profile, region, clusterName, insightID string) (*EKSIns
 			if stat == nil {
 				continue
 			}
-			clientStat := ClientStat{}
+			clientStat := data.ClientStat{}
 			if stat.LastRequestTime != nil {
 				clientStat.LastRequestTime = *stat.LastRequestTime
 			}
@@ -98,7 +69,7 @@ func DescribeEKSInsight(profile, region, clusterName, insightID string) (*EKSIns
 		summary.DeprecationDetails = append(summary.DeprecationDetails, deprecationDetail)
 	}
 
-	return &EKSInsightInfo{
+	return &data.EKSInsightInfo{
 		ID:             *descInsight.Insight.Id,
 		Description:    *descInsight.Insight.Description,
 		Category:       *descInsight.Insight.Category,
@@ -110,7 +81,7 @@ func DescribeEKSInsight(profile, region, clusterName, insightID string) (*EKSIns
 	}, nil
 }
 
-func GetEKSInsights(profile, region, clusterName string) ([]EKSInsightInfo, error) {
+func GetEKSInsights(profile, region, clusterName string) ([]data.EKSInsightInfo, error) {
 	// Create a new session using the profile and region
 	sess, err := session.NewSessionWithOptions(session.Options{
 		Profile:           profile,
@@ -133,7 +104,7 @@ func GetEKSInsights(profile, region, clusterName string) ([]EKSInsightInfo, erro
 		return nil, fmt.Errorf("failed to list insights for cluster %s in region %s: %w", clusterName, region, err)
 	}
 
-	insightsInfoList := []EKSInsightInfo{}
+	insightsInfoList := []data.EKSInsightInfo{}
 
 	for _, insight := range insightsList.Insights {
 		if insight == nil {
@@ -141,7 +112,7 @@ func GetEKSInsights(profile, region, clusterName string) ([]EKSInsightInfo, erro
 		}
 
 		if insight.Id != nil && insight.InsightStatus.Reason != nil && insight.InsightStatus.Status != nil {
-			insightsInfoList = append(insightsInfoList, EKSInsightInfo{
+			insightsInfoList = append(insightsInfoList, data.EKSInsightInfo{
 				ID:       *insight.Id,
 				Category: *insight.Category,
 				Status:   *insight.InsightStatus.Status,

@@ -5,6 +5,7 @@ import (
 
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
 	"github.com/pet2cattle/kubectl-eks/pkg/k8s"
+	"github.com/pet2cattle/kubectl-eks/pkg/printutils"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -88,7 +89,7 @@ var statsCmd = &cobra.Command{
 			noHeaders = false
 		}
 
-		PrintK8SStats(noHeaders, k8sStatsList...)
+		printutils.PrintK8SStats(noHeaders, k8sStatsList...)
 
 		saveCacheToDisk()
 	},

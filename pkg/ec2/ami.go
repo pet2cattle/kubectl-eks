@@ -6,17 +6,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/pet2cattle/kubectl-eks/pkg/data"
 )
 
-type AMIInfo struct {
-	ID              string
-	Name            string
-	Architecture    string
-	State           string
-	DeprecationTime string
-}
-
-func GetAMIInfo(profile, region, ami string) (*AMIInfo, error) {
+func GetAMIInfo(profile, region, ami string) (*data.AMIInfo, error) {
 	// Create a new session using the profile and region
 	sess, err := session.NewSessionWithOptions(session.Options{
 		Profile:           profile,
@@ -55,7 +48,7 @@ func GetAMIInfo(profile, region, ami string) (*AMIInfo, error) {
 		return nil, fmt.Errorf("unexpected AMI found with ID %s (searching for %q)", *result.Images[0].ImageId, ami)
 	}
 
-	info := AMIInfo{
+	info := data.AMIInfo{
 		ID:           *result.Images[0].ImageId,
 		Name:         *result.Images[0].Name,
 		Architecture: *result.Images[0].Architecture,
