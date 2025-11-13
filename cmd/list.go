@@ -13,8 +13,20 @@ import (
 
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List EKS clusters",
-	Long:  `List EKS clusters filtering by AWS profile and region`,
+	Short: "List all EKS clusters in your AWS account",
+	Long: `List all EKS clusters in your AWS account with optional filters.
+You can filter by cluster name, region, version, or AWS profile.`,
+	Example: `  # List all clusters
+  kubectl eks list
+  
+  # Filter by name
+  kubectl eks list --name-contains dev
+  
+  # Filter by region
+  kubectl eks list --region us-east-1
+  
+  # Filter by version and profile
+  kubectl eks list --version 1.29 --profile profile-1`,
 	Run: func(cmd *cobra.Command, args []string) {
 		refresh, err := cmd.Flags().GetBool("refresh")
 		if err != nil {

@@ -145,8 +145,21 @@ func loadClusterByArn(clusterArn string) *ClusterInfo {
 
 var rootCmd = &cobra.Command{
 	Use:   "kubectl-eks",
-	Short: "A kubectl plugin for Amazon EKS",
-	Long:  `A kubectl plugin for Amazon EKS`,
+	Short: "A kubectl plugin for managing Amazon EKS clusters",
+	Long: `kubectl-eks provides convenient commands for listing, inspecting, 
+and switching between EKS clusters and their associated resources.
+
+Prerequisites:
+- AWS CLI installed and configured
+- kubectl installed and configured`,
+	Example: `  # Show current cluster info
+  kubectl eks
+  
+  # List all clusters
+  kubectl eks list
+  
+  # Switch to a cluster
+  kubectl eks use my-cluster`,
 	Run: func(cmd *cobra.Command, args []string) {
 		refresh, err := cmd.Flags().GetBool("refresh")
 		if err != nil {
