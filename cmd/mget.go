@@ -53,7 +53,7 @@ Supports output formats:
   kubectl eks mget pods --name-contains prod --resource-starts-with nginx
   
   # Works with any resource including CRDs
-  kubectl eks mget karpentermachines -A`,
+  kubectl eks mget ec2nodeclass -A`,
 	Args: cobra.RangeArgs(1, 2),
 	Run: func(cmd *cobra.Command, args []string) {
 		resourceType := args[0]

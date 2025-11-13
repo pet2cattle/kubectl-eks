@@ -37,6 +37,9 @@ kubectl-eks mget [resource-type] [resource-name] [flags]
   
   # Filter clusters and resources
   kubectl eks mget pods --name-contains prod --resource-starts-with nginx
+  
+  # Works with any resource including CRDs
+  kubectl eks mget ec2nodeclass -A
 ```
 
 ### Options
