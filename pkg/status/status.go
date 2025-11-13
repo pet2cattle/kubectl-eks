@@ -108,10 +108,26 @@ func extractServiceStatus(obj map[string]interface{}) string {
 
 func extractPDBStatus(obj map[string]interface{}) string {
 	currentHealthy, _, _ := unstructured.NestedInt64(obj, "status", "currentHealthy")
-	desiredHealthy, _, _ := unstructured.NestedInt64(obj, "status", "desiredHealthy")
 	disruptionsAllowed, _, _ := unstructured.NestedInt64(obj, "status", "disruptionsAllowed")
+	expectedPods, _, _ := unstructured.NestedInt64(obj, "status", "expectedPods")
 
-	return fmt.Sprintf("%d/%d healthy (allowed: %d)", currentHealthy, desiredHealthy, disruptionsAllowed)
+	// Check if using minAvailable or maxUnavailable from spec
+	minAvailable, hasMinAvailable, _ := unstructured.NestedInt64(obj, "spec", "minAvailable")
+	maxUnavailable, hasMaxUnavailable, _ := unstructured.NestedInt64(obj, "spec", "maxUnavailable")
+
+	// Build status similar to kubectl output
+	if hasMinAvailable {
+		return fmt.Sprintf("%d/%d available, %d allowed", currentHealthy, minAvailable, disruptionsAllowed)
+	} else if hasMaxUnavailable {
+		return fmt.Sprintf("%d healthy, max %d unavailable, %d allowed", currentHealthy, maxUnavailable, disruptionsAllowed)
+	}
+
+	// Fallback to simple format
+	if expectedPods > 0 {
+		return fmt.Sprintf("%d/%d healthy, %d allowed", currentHealthy, expectedPods, disruptionsAllowed)
+	}
+
+	return fmt.Sprintf("%d healthy, %d allowed", currentHealthy, disruptionsAllowed)
 }
 
 func extractNodeStatus(obj map[string]interface{}) string {
