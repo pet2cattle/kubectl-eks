@@ -37,6 +37,7 @@ type ResourceResult struct {
 	Kind        string
 	Data        interface{}
 	Error       string
+	Status      string
 }
 
 type AWSProfile struct {

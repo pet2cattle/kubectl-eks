@@ -11,8 +11,13 @@ import (
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
 	"github.com/pet2cattle/kubectl-eks/pkg/k8s"
 	"github.com/pet2cattle/kubectl-eks/pkg/printutils"
+	"github.com/pet2cattle/kubectl-eks/pkg/status"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/jsonpath"
@@ -45,7 +50,10 @@ Supports output formats:
   kubectl eks mget deployments -o wide
   
   # Filter clusters and resources
-  kubectl eks mget pods --name-contains prod --resource-starts-with nginx`,
+  kubectl eks mget pods --name-contains prod --resource-starts-with nginx
+  
+  # Works with any resource including CRDs
+  kubectl eks mget karpentermachines -A`,
 	Args: cobra.RangeArgs(1, 2),
 	Run: func(cmd *cobra.Command, args []string) {
 		resourceType := args[0]
@@ -89,11 +97,11 @@ Supports output formats:
 		if strings.HasPrefix(output, "jsonpath=") {
 			jsonpathExpr := strings.TrimPrefix(output, "jsonpath=")
 			runJsonPathQuery(clusterList, resourceType, resourceName, jsonpathExpr, namespace, allNamespaces, startsWith, noHeaders)
-		} else if resourceType == "pods" || resourceType == "pod" || resourceType == "po" {
-			// Use existing pod listing functionality
+		} else if (resourceType == "pods" || resourceType == "pod" || resourceType == "po") && output == "" {
+			// Use existing pod listing functionality only for default output
 			runPodListing(clusterList, namespace, allNamespaces, noHeaders)
 		} else {
-			// Generic resource listing
+			// Generic resource listing using dynamic client
 			runGenericListing(clusterList, resourceType, resourceName, namespace, allNamespaces, startsWith, output, noHeaders)
 		}
 
@@ -141,25 +149,78 @@ func runGenericListing(clusterList []data.ClusterInfo, resourceType, resourceNam
 			continue
 		}
 
-		clientset, err := kubernetes.NewForConfig(restConfig)
+		// Create dynamic client for generic resource access
+		dynamicClient, err := dynamic.NewForConfig(restConfig)
 		if err != nil {
 			continue
 		}
 
-		namespaces := getNamespaces(clientset, clientConfig, namespace, allNamespaces)
+		// Create discovery client to resolve resource types
+		discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+		if err != nil {
+			continue
+		}
+
+		// Resolve the resource type to GVR
+		gvr, namespaced, err := resolveResourceType(discoveryClient, resourceType)
+		if err != nil {
+			results = append(results, data.ResourceResult{
+				Profile:     clusterInfo.AWSProfile,
+				Region:      clusterInfo.Region,
+				ClusterName: clusterInfo.ClusterName,
+				Error:       fmt.Sprintf("Failed to resolve resource type '%s': %v", resourceType, err),
+			})
+			continue
+		}
+
+		namespaces := []string{}
+		if namespaced {
+			if allNamespaces {
+				// Create typed client just for listing namespaces
+				clientset, err := kubernetes.NewForConfig(restConfig)
+				if err != nil {
+					continue
+				}
+				nsList, err := clientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+				if err == nil {
+					for _, ns := range nsList.Items {
+						namespaces = append(namespaces, ns.Name)
+					}
+				}
+			} else if namespace != "" {
+				namespaces = append(namespaces, namespace)
+			} else {
+				ns, _, err := clientConfig.Namespace()
+				if err != nil {
+					namespaces = append(namespaces, "default")
+				} else {
+					namespaces = append(namespaces, ns)
+				}
+			}
+		} else {
+			// Cluster-scoped resource
+			namespaces = append(namespaces, "")
+		}
 
 		for _, ns := range namespaces {
+			var resourceInterface dynamic.ResourceInterface
+			if namespaced && ns != "" {
+				resourceInterface = dynamicClient.Resource(gvr).Namespace(ns)
+			} else {
+				resourceInterface = dynamicClient.Resource(gvr)
+			}
+
 			if resourceName != "" {
 				// Get single resource
-				obj, name, kind, getErr := getResource(clientset, resourceType, ns, resourceName)
-				if getErr != nil {
+				obj, err := resourceInterface.Get(context.Background(), resourceName, metav1.GetOptions{})
+				if err != nil {
 					results = append(results, data.ResourceResult{
 						Profile:     clusterInfo.AWSProfile,
 						Region:      clusterInfo.Region,
 						ClusterName: clusterInfo.ClusterName,
 						Namespace:   ns,
 						Name:        resourceName,
-						Error:       getErr.Error(),
+						Error:       err.Error(),
 					})
 					continue
 				}
@@ -168,26 +229,28 @@ func runGenericListing(clusterList []data.ClusterInfo, resourceType, resourceNam
 					Region:      clusterInfo.Region,
 					ClusterName: clusterInfo.ClusterName,
 					Namespace:   ns,
-					Name:        name,
-					Kind:        kind,
-					Data:        obj,
+					Name:        obj.GetName(),
+					Kind:        obj.GetKind(),
+					Data:        obj.Object,
+					Status:      status.ExtractStatus(obj.Object, obj.GetKind()),
 				})
 			} else {
 				// List resources
-				objs, names, kinds, listErr := listResources(clientset, resourceType, ns)
-				if listErr != nil {
+				list, err := resourceInterface.List(context.Background(), metav1.ListOptions{})
+				if err != nil {
 					results = append(results, data.ResourceResult{
 						Profile:     clusterInfo.AWSProfile,
 						Region:      clusterInfo.Region,
 						ClusterName: clusterInfo.ClusterName,
 						Namespace:   ns,
-						Error:       listErr.Error(),
+						Error:       err.Error(),
 					})
 					continue
 				}
 
 				// Apply startsWith filter
-				for i, name := range names {
+				for _, item := range list.Items {
+					name := item.GetName()
 					if startsWith != "" && !strings.HasPrefix(name, startsWith) {
 						continue
 					}
@@ -197,8 +260,9 @@ func runGenericListing(clusterList []data.ClusterInfo, resourceType, resourceNam
 						ClusterName: clusterInfo.ClusterName,
 						Namespace:   ns,
 						Name:        name,
-						Kind:        kinds[i],
-						Data:        objs[i],
+						Kind:        item.GetKind(),
+						Data:        item.Object,
+						Status:      status.ExtractStatus(item.Object, item.GetKind()),
 					})
 				}
 			}
@@ -207,6 +271,91 @@ func runGenericListing(clusterList []data.ClusterInfo, resourceType, resourceNam
 
 	// Print results based on output format
 	printutils.PrintGenericResults(results, output, noHeaders)
+}
+
+// resolveResourceType converts a resource type string (like "pods", "po", "deploy") to a GroupVersionResource
+func resolveResourceType(discoveryClient *discovery.DiscoveryClient, resourceType string) (schema.GroupVersionResource, bool, error) {
+	// Common short names mapping
+	shortNames := map[string]schema.GroupVersionResource{
+		"po":      {Group: "", Version: "v1", Resource: "pods"},
+		"pod":     {Group: "", Version: "v1", Resource: "pods"},
+		"pods":    {Group: "", Version: "v1", Resource: "pods"},
+		"svc":     {Group: "", Version: "v1", Resource: "services"},
+		"service": {Group: "", Version: "v1", Resource: "services"},
+		"deploy":  {Group: "apps", Version: "v1", Resource: "deployments"},
+		"ds":      {Group: "apps", Version: "v1", Resource: "daemonsets"},
+		"sts":     {Group: "apps", Version: "v1", Resource: "statefulsets"},
+		"cm":      {Group: "", Version: "v1", Resource: "configmaps"},
+		"pdb":     {Group: "policy", Version: "v1", Resource: "poddisruptionbudgets"},
+		"ing":     {Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"},
+		"no":      {Group: "", Version: "v1", Resource: "nodes"},
+		"node":    {Group: "", Version: "v1", Resource: "nodes"},
+		"ns":      {Group: "", Version: "v1", Resource: "namespaces"},
+	}
+
+	// Check if it's a known short name
+	if gvr, ok := shortNames[strings.ToLower(resourceType)]; ok {
+		namespaced := !isClusterScoped(gvr.Resource)
+		return gvr, namespaced, nil
+	}
+
+	// Use discovery to find the resource
+	apiResourceLists, err := discoveryClient.ServerPreferredResources()
+	if err != nil {
+		// Partial errors are okay
+		if apiResourceLists == nil {
+			return schema.GroupVersionResource{}, false, err
+		}
+	}
+
+	// Normalize resource type (add 's' if not present for plural)
+	resourceTypeLower := strings.ToLower(resourceType)
+
+	for _, apiResourceList := range apiResourceLists {
+		gv, err := schema.ParseGroupVersion(apiResourceList.GroupVersion)
+		if err != nil {
+			continue
+		}
+
+		for _, apiResource := range apiResourceList.APIResources {
+			// Match by name or short names
+			if strings.ToLower(apiResource.Name) == resourceTypeLower ||
+				strings.ToLower(apiResource.SingularName) == resourceTypeLower {
+				return schema.GroupVersionResource{
+					Group:    gv.Group,
+					Version:  gv.Version,
+					Resource: apiResource.Name,
+				}, apiResource.Namespaced, nil
+			}
+
+			// Check short names
+			for _, shortName := range apiResource.ShortNames {
+				if strings.ToLower(shortName) == resourceTypeLower {
+					return schema.GroupVersionResource{
+						Group:    gv.Group,
+						Version:  gv.Version,
+						Resource: apiResource.Name,
+					}, apiResource.Namespaced, nil
+				}
+			}
+		}
+	}
+
+	return schema.GroupVersionResource{}, false, fmt.Errorf("resource type '%s' not found", resourceType)
+}
+
+func isClusterScoped(resource string) bool {
+	clusterScoped := map[string]bool{
+		"nodes":                     true,
+		"namespaces":                true,
+		"persistentvolumes":         true,
+		"clusterroles":              true,
+		"clusterrolebindings":       true,
+		"storageclasses":            true,
+		"customresourcedefinitions": true,
+		"priorityclasses":           true,
+	}
+	return clusterScoped[resource]
 }
 
 func runJsonPathQuery(clusterList []data.ClusterInfo, resourceType, resourceName, jsonpathExpr, namespace string, allNamespaces bool, startsWith string, noHeaders bool) {
@@ -245,50 +394,99 @@ func runJsonPathQuery(clusterList []data.ClusterInfo, resourceType, resourceName
 			continue
 		}
 
-		clientset, err := kubernetes.NewForConfig(restConfig)
+		dynamicClient, err := dynamic.NewForConfig(restConfig)
 		if err != nil {
 			continue
 		}
 
-		namespaces := getNamespaces(clientset, clientConfig, namespace, allNamespaces)
+		discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+		if err != nil {
+			continue
+		}
+
+		gvr, namespaced, err := resolveResourceType(discoveryClient, resourceType)
+		if err != nil {
+			results = append(results, data.JsonPathResult{
+				Profile:     clusterInfo.AWSProfile,
+				Region:      clusterInfo.Region,
+				ClusterName: clusterInfo.ClusterName,
+				Error:       fmt.Sprintf("Failed to resolve resource type: %v", err),
+			})
+			continue
+		}
+
+		namespaces := []string{}
+		if namespaced {
+			if allNamespaces {
+				clientset, err := kubernetes.NewForConfig(restConfig)
+				if err != nil {
+					continue
+				}
+				nsList, err := clientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+				if err == nil {
+					for _, ns := range nsList.Items {
+						namespaces = append(namespaces, ns.Name)
+					}
+				}
+			} else if namespace != "" {
+				namespaces = append(namespaces, namespace)
+			} else {
+				ns, _, err := clientConfig.Namespace()
+				if err != nil {
+					namespaces = append(namespaces, "default")
+				} else {
+					namespaces = append(namespaces, ns)
+				}
+			}
+		} else {
+			namespaces = append(namespaces, "")
+		}
 
 		for _, ns := range namespaces {
-			var objects []interface{}
+			var resourceInterface dynamic.ResourceInterface
+			if namespaced && ns != "" {
+				resourceInterface = dynamicClient.Resource(gvr).Namespace(ns)
+			} else {
+				resourceInterface = dynamicClient.Resource(gvr)
+			}
+
+			var objects []*unstructured.Unstructured
 			var resourceNames []string
 
 			if resourceName != "" {
-				obj, name, _, getErr := getResource(clientset, resourceType, ns, resourceName)
-				if getErr != nil {
+				obj, err := resourceInterface.Get(context.Background(), resourceName, metav1.GetOptions{})
+				if err != nil {
 					results = append(results, data.JsonPathResult{
 						Profile:     clusterInfo.AWSProfile,
 						Region:      clusterInfo.Region,
 						ClusterName: clusterInfo.ClusterName,
 						Namespace:   ns,
 						Resource:    resourceName,
-						Error:       getErr.Error(),
+						Error:       err.Error(),
 					})
 					continue
 				}
 				objects = append(objects, obj)
-				resourceNames = append(resourceNames, name)
+				resourceNames = append(resourceNames, obj.GetName())
 			} else {
-				objs, names, _, listErr := listResources(clientset, resourceType, ns)
-				if listErr != nil {
+				list, err := resourceInterface.List(context.Background(), metav1.ListOptions{})
+				if err != nil {
 					results = append(results, data.JsonPathResult{
 						Profile:     clusterInfo.AWSProfile,
 						Region:      clusterInfo.Region,
 						ClusterName: clusterInfo.ClusterName,
 						Namespace:   ns,
 						Resource:    "all",
-						Error:       listErr.Error(),
+						Error:       err.Error(),
 					})
 					continue
 				}
 
-				// Filter by starts-with
-				for i, name := range names {
+				for _, item := range list.Items {
+					name := item.GetName()
 					if startsWith == "" || strings.HasPrefix(name, startsWith) {
-						objects = append(objects, objs[i])
+						itemCopy := item
+						objects = append(objects, &itemCopy)
 						resourceNames = append(resourceNames, name)
 					}
 				}
@@ -296,7 +494,7 @@ func runJsonPathQuery(clusterList []data.ClusterInfo, resourceType, resourceName
 
 			// Execute JSONPath on each object
 			for i, obj := range objects {
-				values, err := jp.FindResults(obj)
+				values, err := jp.FindResults(obj.Object)
 				if err != nil {
 					results = append(results, data.JsonPathResult{
 						Profile:     clusterInfo.AWSProfile,
@@ -337,154 +535,6 @@ func runJsonPathQuery(clusterList []data.ClusterInfo, resourceType, resourceName
 	}
 
 	printutils.PrintJsonPathResults(noHeaders, results)
-}
-
-func getNamespaces(clientset *kubernetes.Clientset, clientConfig clientcmd.ClientConfig, namespace string, allNamespaces bool) []string {
-	namespaces := []string{}
-	if allNamespaces {
-		nsList, err := clientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
-		if err == nil {
-			for _, ns := range nsList.Items {
-				namespaces = append(namespaces, ns.Name)
-			}
-		}
-	} else if namespace != "" {
-		namespaces = append(namespaces, namespace)
-	} else {
-		ns, _, err := clientConfig.Namespace()
-		if err != nil {
-			namespaces = append(namespaces, "default")
-		} else {
-			namespaces = append(namespaces, ns)
-		}
-	}
-	return namespaces
-}
-
-// Add to getResource function:
-func getResource(clientset *kubernetes.Clientset, resourceType, namespace, name string) (interface{}, string, string, error) {
-	switch resourceType {
-	case "pod", "pods", "po":
-		pod, err := clientset.CoreV1().Pods(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		return pod, pod.Name, "Pod", err
-	case "service", "services", "svc":
-		svc, err := clientset.CoreV1().Services(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		return svc, svc.Name, "Service", err
-	case "deployment", "deployments", "deploy":
-		deploy, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		return deploy, deploy.Name, "Deployment", err
-	case "daemonset", "daemonsets", "ds":
-		ds, err := clientset.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		return ds, ds.Name, "DaemonSet", err
-	case "statefulset", "statefulsets", "sts":
-		sts, err := clientset.AppsV1().StatefulSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		return sts, sts.Name, "StatefulSet", err
-	case "configmap", "configmaps", "cm":
-		cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		return cm, cm.Name, "ConfigMap", err
-	case "secret", "secrets":
-		secret, err := clientset.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		return secret, secret.Name, "Secret", err
-	case "poddisruptionbudget", "poddisruptionbudgets", "pdb":
-		pdb, err := clientset.PolicyV1().PodDisruptionBudgets(namespace).Get(context.Background(), name, metav1.GetOptions{})
-		return pdb, pdb.Name, "PodDisruptionBudget", err
-	default:
-		return nil, "", "", fmt.Errorf("unsupported resource type: %s", resourceType)
-	}
-}
-
-// Add to listResources function:
-func listResources(clientset *kubernetes.Clientset, resourceType, namespace string) ([]interface{}, []string, []string, error) {
-	var objects []interface{}
-	var names []string
-	var kinds []string
-
-	switch resourceType {
-	case "pod", "pods", "po":
-		list, err := clientset.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{})
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		for i := range list.Items {
-			objects = append(objects, &list.Items[i])
-			names = append(names, list.Items[i].Name)
-			kinds = append(kinds, "Pod")
-		}
-	case "service", "services", "svc":
-		list, err := clientset.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{})
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		for i := range list.Items {
-			objects = append(objects, &list.Items[i])
-			names = append(names, list.Items[i].Name)
-			kinds = append(kinds, "Service")
-		}
-	case "deployment", "deployments", "deploy":
-		list, err := clientset.AppsV1().Deployments(namespace).List(context.Background(), metav1.ListOptions{})
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		for i := range list.Items {
-			objects = append(objects, &list.Items[i])
-			names = append(names, list.Items[i].Name)
-			kinds = append(kinds, "Deployment")
-		}
-	case "daemonset", "daemonsets", "ds":
-		list, err := clientset.AppsV1().DaemonSets(namespace).List(context.Background(), metav1.ListOptions{})
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		for i := range list.Items {
-			objects = append(objects, &list.Items[i])
-			names = append(names, list.Items[i].Name)
-			kinds = append(kinds, "DaemonSet")
-		}
-	case "statefulset", "statefulsets", "sts":
-		list, err := clientset.AppsV1().StatefulSets(namespace).List(context.Background(), metav1.ListOptions{})
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		for i := range list.Items {
-			objects = append(objects, &list.Items[i])
-			names = append(names, list.Items[i].Name)
-			kinds = append(kinds, "StatefulSet")
-		}
-	case "configmap", "configmaps", "cm":
-		list, err := clientset.CoreV1().ConfigMaps(namespace).List(context.Background(), metav1.ListOptions{})
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		for i := range list.Items {
-			objects = append(objects, &list.Items[i])
-			names = append(names, list.Items[i].Name)
-			kinds = append(kinds, "ConfigMap")
-		}
-	case "secret", "secrets":
-		list, err := clientset.CoreV1().Secrets(namespace).List(context.Background(), metav1.ListOptions{})
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		for i := range list.Items {
-			objects = append(objects, &list.Items[i])
-			names = append(names, list.Items[i].Name)
-			kinds = append(kinds, "Secret")
-		}
-	case "poddisruptionbudget", "poddisruptionbudgets", "pdb":
-		list, err := clientset.PolicyV1().PodDisruptionBudgets(namespace).List(context.Background(), metav1.ListOptions{})
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		for i := range list.Items {
-			objects = append(objects, &list.Items[i])
-			names = append(names, list.Items[i].Name)
-			kinds = append(kinds, "PodDisruptionBudget")
-		}
-	default:
-		return nil, nil, nil, fmt.Errorf("unsupported resource type: %s", resourceType)
-	}
-
-	return objects, names, kinds, nil
 }
 
 func formatValue(val interface{}) string {
