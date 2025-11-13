@@ -130,6 +130,39 @@ func extractAge(data interface{}) string {
 	return formatAge(t)
 }
 
+func extractNodeWideInfo(obj map[string]interface{}) string {
+	// Get node addresses
+	addresses, found, _ := unstructured.NestedSlice(obj, "status", "addresses")
+	if !found {
+		return "-"
+	}
+
+	var internalIP, externalIP string
+	for _, addr := range addresses {
+		addrMap, ok := addr.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		addrType, _ := addrMap["type"].(string)
+		addrValue, _ := addrMap["address"].(string)
+
+		switch addrType {
+		case "InternalIP":
+			internalIP = addrValue
+		case "ExternalIP":
+			externalIP = addrValue
+		}
+	}
+
+	if externalIP != "" && internalIP != "" {
+		return fmt.Sprintf("Internal: %s, External: %s", internalIP, externalIP)
+	}
+	if internalIP != "" {
+		return fmt.Sprintf("Internal: %s", internalIP)
+	}
+	return "-"
+}
+
 // extractAdditionalInfo extracts additional info for wide output based on resource kind
 func extractAdditionalInfo(data interface{}, kind string) string {
 	obj, ok := data.(map[string]interface{})
@@ -169,38 +202,6 @@ func extractPodWideInfo(obj map[string]interface{}) string {
 	}
 	if node != "" {
 		return fmt.Sprintf("Node: %s", node)
-	}
-	return "-"
-}
-
-func extractNodeWideInfo(obj map[string]interface{}) string {
-	// Get node addresses
-	addresses, found, _ := unstructured.NestedSlice(obj, "status", "addresses")
-	if !found {
-		return "-"
-	}
-
-	var internalIP, externalIP string
-	for _, addr := range addresses {
-		addrMap, ok := addr.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		addrType, _ := addrMap["type"].(string)
-		addrValue, _ := addrMap["address"].(string)
-
-		if addrType == "InternalIP" {
-			internalIP = addrValue
-		} else if addrType == "ExternalIP" {
-			externalIP = addrValue
-		}
-	}
-
-	if externalIP != "" && internalIP != "" {
-		return fmt.Sprintf("Internal: %s, External: %s", internalIP, externalIP)
-	}
-	if internalIP != "" {
-		return fmt.Sprintf("Internal: %s", internalIP)
 	}
 	return "-"
 }
