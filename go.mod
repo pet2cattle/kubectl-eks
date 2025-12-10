@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.55.8
 	github.com/spf13/cobra v1.10.2
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/apimachinery v0.34.2
+	k8s.io/apimachinery v0.34.3
 	k8s.io/cli-runtime v0.34.2
 	k8s.io/client-go v0.34.2
 )
