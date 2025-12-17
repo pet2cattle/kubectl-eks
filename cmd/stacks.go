@@ -21,21 +21,22 @@ var stacksCmd = &cobra.Command{
 			searchName = ""
 		}
 
+		paramFilter, err := cmd.Flags().GetBool("by-parameter")
+		if err != nil {
+			paramFilter = false
+		}
+
 		clusterArn := ""
 
 		if len(args) != 1 {
-			// Load Kubernetes configuration
 			config, err := KubernetesConfigFlags.ToRawKubeConfigLoader().RawConfig()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error loading kubeconfig: %v\n", err.Error())
 				os.Exit(1)
 			}
 
-			// Get current context
 			currentContext := config.CurrentContext
-			// fmt.Printf("Current context: %s\n", currentContext)
 
-			// Retrieve cluster information
 			contextDetails, exists := config.Contexts[currentContext]
 			if !exists {
 				fmt.Fprintf(os.Stderr, "Context '%s' not found in kubeconfig\n", currentContext)
@@ -67,7 +68,6 @@ var stacksCmd = &cobra.Command{
 			}
 		}
 
-		// validate cached data, if invalid, refresh
 		if clusterInfo.Arn != clusterArn {
 			CachedData = &data.KubeCtlEksCache{
 				ClusterByARN: make(map[string]data.ClusterInfo),
@@ -86,8 +86,15 @@ var stacksCmd = &cobra.Command{
 			searchName = clusterInfo.ClusterName
 		}
 
-		// get CF stacks based on cluster name
-		stackList, err := cf.GetStacks(searchName, clusterInfo.AWSProfile, clusterInfo.Region)
+		var stackList []cf.StackInfo
+		if paramFilter {
+			// Filter by ClusterName parameter value
+			stackList, err = cf.GetStacksByParameter("ClusterName", searchName, clusterInfo.AWSProfile, clusterInfo.Region)
+		} else {
+			// Original name-based search
+			stackList, err = cf.GetStacks(searchName, clusterInfo.AWSProfile, clusterInfo.Region)
+		}
+
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting CF stacks: %v\n", err.Error())
 			os.Exit(1)
@@ -104,6 +111,6 @@ var stacksCmd = &cobra.Command{
 
 func init() {
 	stacksCmd.Flags().String("name", "", "Search for a specific stack name")
-	//TODO: filter by status
+	stacksCmd.Flags().BoolP("by-parameter", "p", false, "Filter stacks by ClusterName parameter instead of stack name")
 	rootCmd.AddCommand(stacksCmd)
 }
