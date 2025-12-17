@@ -10,9 +10,10 @@ import (
 )
 
 var profileCmd = &cobra.Command{
-	Use:   "aws-profile",
-	Short: "Get AWS profile",
-	Long:  `Get the AWS profile name for the current cluster (or specified cluster ARN)`,
+	Use:     "aws-profile",
+	Aliases: []string{"profile"},
+	Short:   "Get AWS profile",
+	Long:    `Get the AWS profile name for the current cluster (or specified cluster ARN)`,
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterArn := ""
 
