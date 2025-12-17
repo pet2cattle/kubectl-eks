@@ -19,7 +19,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab
         with:
-          go-version: 1.23.x
+          go-version: 1.24.x
 
       - name: Are we releasing?
         id: vars
