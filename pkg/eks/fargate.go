@@ -1,11 +1,12 @@
 package eks
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+	"github.com/pet2cattle/kubectl-eks/pkg/awsutil"
 )
 
 type FargateProfileInfo struct {
@@ -21,23 +22,40 @@ type FargateSelector struct {
 	Labels    map[string]string
 }
 
-func GetEKSFargateProfiles(profile, region, clusterName string) ([]FargateProfileInfo, error) {
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Profile:           profile,
-		Config:            aws.Config{Region: aws.String(region)},
-		SharedConfigState: session.SharedConfigEnable,
-	})
+// Client wraps the EKS API for easier testing
+type Client struct {
+	api awsutil.EKSAPI
+}
+
+// NewClient creates a new EKS client
+func NewClient(profile, region string) (*Client, error) {
+	cfg, err := awsutil.LoadConfig(profile, region)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create session: %w", err)
+		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
+	return &Client{api: eks.NewFromConfig(cfg)}, nil
+}
 
-	svc := eks.New(sess)
+// NewClientWithAPI creates a client with a custom API implementation (for testing)
+func NewClientWithAPI(api awsutil.EKSAPI) *Client {
+	return &Client{api: api}
+}
 
+func GetEKSFargateProfiles(profile, region, clusterName string) ([]FargateProfileInfo, error) {
+	client, err := NewClient(profile, region)
+	if err != nil {
+		return nil, err
+	}
+	return client.GetFargateProfiles(clusterName)
+}
+
+func (c *Client) GetFargateProfiles(clusterName string) ([]FargateProfileInfo, error) {
 	// List all Fargate profile names
-	var profileNames []*string
+	var profileNames []string
 	var nextToken *string
+
 	for {
-		resp, err := svc.ListFargateProfiles(&eks.ListFargateProfilesInput{
+		output, err := c.api.ListFargateProfiles(context.TODO(), &eks.ListFargateProfilesInput{
 			ClusterName: aws.String(clusterName),
 			NextToken:   nextToken,
 		})
@@ -45,37 +63,37 @@ func GetEKSFargateProfiles(profile, region, clusterName string) ([]FargateProfil
 			return nil, fmt.Errorf("failed to list Fargate profiles: %w", err)
 		}
 
-		profileNames = append(profileNames, resp.FargateProfileNames...)
+		profileNames = append(profileNames, output.FargateProfileNames...)
 
-		if resp.NextToken == nil {
+		if output.NextToken == nil {
 			break
 		}
-		nextToken = resp.NextToken
+		nextToken = output.NextToken
 	}
 
 	// Describe each profile
 	var profiles []FargateProfileInfo
 	for _, name := range profileNames {
-		resp, err := svc.DescribeFargateProfile(&eks.DescribeFargateProfileInput{
+		resp, err := c.api.DescribeFargateProfile(context.TODO(), &eks.DescribeFargateProfileInput{
 			ClusterName:        aws.String(clusterName),
-			FargateProfileName: name,
+			FargateProfileName: aws.String(name),
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to describe Fargate profile %s: %w", *name, err)
+			return nil, fmt.Errorf("failed to describe Fargate profile %s: %w", name, err)
 		}
 
 		fp := resp.FargateProfile
 		info := FargateProfileInfo{
-			Name:           *fp.FargateProfileName,
-			Status:         *fp.Status,
-			PodExecRoleArn: aws.StringValue(fp.PodExecutionRoleArn),
-			Subnets:        aws.StringValueSlice(fp.Subnets),
+			Name:           aws.ToString(fp.FargateProfileName),
+			Status:         string(fp.Status),
+			PodExecRoleArn: aws.ToString(fp.PodExecutionRoleArn),
+			Subnets:        fp.Subnets,
 		}
 
 		for _, sel := range fp.Selectors {
 			selector := FargateSelector{
-				Namespace: aws.StringValue(sel.Namespace),
-				Labels:    aws.StringValueMap(sel.Labels),
+				Namespace: aws.ToString(sel.Namespace),
+				Labels:    sel.Labels,
 			}
 			info.Selectors = append(info.Selectors, selector)
 		}
