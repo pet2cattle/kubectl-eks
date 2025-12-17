@@ -22,6 +22,8 @@ var genDocsCmd = &cobra.Command{
 			return fmt.Errorf("failed to create docs directory: %w", err)
 		}
 
+		rootCmd.DisableAutoGenTag = true
+
 		// Generate markdown documentation
 		if err := doc.GenMarkdownTree(rootCmd, "./docs"); err != nil {
 			return fmt.Errorf("failed to generate markdown docs: %w", err)
