@@ -3,9 +3,10 @@ package printutils
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 
 	"github.com/pet2cattle/kubectl-eks/pkg/data"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/printers"
 )
 
 // PrintHealthDetails prints only the detailed health check results (no summary)
@@ -15,10 +16,20 @@ func PrintHealthDetails(noHeaders bool, results []data.HealthCheckResult, summar
 		return
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
 
-	if !noHeaders {
-		fmt.Fprintln(w, "AWS PROFILE\tAWS REGION\tCLUSTER NAME\tKIND\tNAMESPACE\tNAME\tREADY\tSTATUS\tMESSAGE")
+	table := &v1.Table{
+		ColumnDefinitions: []v1.TableColumnDefinition{
+			{Name: "AWS PROFILE", Type: "string"},
+			{Name: "AWS REGION", Type: "string"},
+			{Name: "CLUSTER NAME", Type: "string"},
+			{Name: "KIND", Type: "string"},
+			{Name: "NAMESPACE", Type: "string"},
+			{Name: "NAME", Type: "string"},
+			{Name: "READY", Type: "string"},
+			{Name: "STATUS", Type: "string"},
+			{Name: "MESSAGE", Type: "string"},
+		},
 	}
 
 	for _, r := range results {
@@ -27,20 +38,26 @@ func PrintHealthDetails(noHeaders bool, results []data.HealthCheckResult, summar
 			namespace = "-"
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			r.Profile,
-			r.Region,
-			r.ClusterName,
-			r.Kind,
-			namespace,
-			r.Name,
-			r.Ready,
-			r.Status,
-			r.Message,
-		)
+		table.Rows = append(table.Rows, v1.TableRow{
+			Cells: []interface{}{
+				r.Profile,
+				r.Region,
+				r.ClusterName,
+				r.Kind,
+				namespace,
+				r.Name,
+				r.Ready,
+				r.Status,
+				r.Message,
+			},
+		})
 	}
 
-	w.Flush()
+	err := printer.PrintObj(table, os.Stdout)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 // PrintHealthSummary prints only the cluster health summary (no details)
@@ -49,25 +66,41 @@ func PrintHealthSummary(noHeaders bool, summaries []data.ClusterHealthSummary) {
 		return
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
 
-	if !noHeaders {
-		fmt.Fprintln(w, "AWS PROFILE\tAWS REGION\tCLUSTER NAME\tPODS\tDEPLOYMENTS\tSTATEFULSETS\tDAEMONSETS\tREPLICASETS\tSTATUS")
+	table := &v1.Table{
+		ColumnDefinitions: []v1.TableColumnDefinition{
+			{Name: "AWS PROFILE", Type: "string"},
+			{Name: "AWS REGION", Type: "string"},
+			{Name: "CLUSTER NAME", Type: "string"},
+			{Name: "PODS", Type: "string"},
+			{Name: "DEPLOYMENTS", Type: "string"},
+			{Name: "STATEFULSETS", Type: "string"},
+			{Name: "DAEMONSETS", Type: "string"},
+			{Name: "REPLICASETS", Type: "string"},
+			{Name: "STATUS", Type: "string"},
+		},
 	}
 
 	for _, s := range summaries {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%d/%d\t%d/%d\t%d/%d\t%d/%d\t%d/%d\t%s\n",
-			s.Profile,
-			s.Region,
-			s.ClusterName,
-			s.HealthyPods, s.TotalPods,
-			s.HealthyDeployments, s.TotalDeployments,
-			s.HealthyStatefulSets, s.TotalStatefulSets,
-			s.HealthyDaemonSets, s.TotalDaemonSets,
-			s.HealthyReplicaSets, s.TotalReplicaSets,
-			s.OverallStatus,
-		)
+		table.Rows = append(table.Rows, v1.TableRow{
+			Cells: []interface{}{
+				s.Profile,
+				s.Region,
+				s.ClusterName,
+				fmt.Sprintf("%d/%d", s.HealthyPods, s.TotalPods),
+				fmt.Sprintf("%d/%d", s.HealthyDeployments, s.TotalDeployments),
+				fmt.Sprintf("%d/%d", s.HealthyStatefulSets, s.TotalStatefulSets),
+				fmt.Sprintf("%d/%d", s.HealthyDaemonSets, s.TotalDaemonSets),
+				fmt.Sprintf("%d/%d", s.HealthyReplicaSets, s.TotalReplicaSets),
+				s.OverallStatus,
+			},
+		})
 	}
 
-	w.Flush()
+	err := printer.PrintObj(table, os.Stdout)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
+		os.Exit(1)
+	}
 }
