@@ -1,11 +1,12 @@
 package eks
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 )
 
 type EKSUpdateInfo struct {
@@ -15,21 +16,21 @@ type EKSUpdateInfo struct {
 }
 
 func GetEKSUpdates(profile, region, clusterName string) ([]EKSUpdateInfo, error) {
-	// Create a new session using the profile and region
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Profile:           profile,
-		Config:            aws.Config{Region: aws.String(region)},
-		SharedConfigState: session.SharedConfigEnable,
-	})
+	ctx := context.Background()
 
+	// Load the AWS configuration using the profile and region
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithSharedConfigProfile(profile),
+		config.WithRegion(region),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create session: %w", err)
+		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Create an clients
-	eksSvc := eks.New(sess)
+	// Create an EKS client
+	eksSvc := eks.NewFromConfig(cfg)
 
-	updatesOut, err := eksSvc.ListUpdates(&eks.ListUpdatesInput{
+	updatesOut, err := eksSvc.ListUpdates(ctx, &eks.ListUpdatesInput{
 		Name: aws.String(clusterName),
 	})
 
@@ -40,36 +41,34 @@ func GetEKSUpdates(profile, region, clusterName string) ([]EKSUpdateInfo, error)
 	updatesList := []EKSUpdateInfo{}
 
 	for _, updateID := range updatesOut.UpdateIds {
-		if updateID != nil {
-			updateDesc, err := eksSvc.DescribeUpdate(&eks.DescribeUpdateInput{
-				Name:     aws.String(clusterName),
-				UpdateId: updateID,
-			})
-			if err != nil {
-				continue
-			}
-
-			newUpdate := EKSUpdateInfo{
-				Type:   *updateDesc.Update.Type,
-				Status: *updateDesc.Update.Status,
-			}
-
-			if len(updateDesc.Update.Errors) > 0 {
-				for _, err := range updateDesc.Update.Errors {
-					if err != nil {
-						if err.ErrorMessage != nil {
-							newUpdate.Errors = append(newUpdate.Errors, *err.ErrorMessage)
-						}
-					}
-				}
-			}
-
-			if len(newUpdate.Status) == len(newUpdate.Type) && len(newUpdate.Status) == 0 {
-				continue
-			}
-
-			updatesList = append(updatesList, newUpdate)
+		updateDesc, err := eksSvc.DescribeUpdate(ctx, &eks.DescribeUpdateInput{
+			Name:     aws.String(clusterName),
+			UpdateId: aws.String(updateID),
+		})
+		if err != nil {
+			continue
 		}
+
+		if updateDesc.Update == nil {
+			continue
+		}
+
+		newUpdate := EKSUpdateInfo{
+			Type:   string(updateDesc.Update.Type),
+			Status: string(updateDesc.Update.Status),
+		}
+
+		for _, updateErr := range updateDesc.Update.Errors {
+			if updateErr.ErrorMessage != nil {
+				newUpdate.Errors = append(newUpdate.Errors, *updateErr.ErrorMessage)
+			}
+		}
+
+		if len(newUpdate.Status) == 0 && len(newUpdate.Type) == 0 {
+			continue
+		}
+
+		updatesList = append(updatesList, newUpdate)
 	}
 
 	return updatesList, nil

@@ -1,37 +1,34 @@
 package ec2
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/pet2cattle/kubectl-eks/pkg/data"
 )
 
 func GetAMIInfo(profile, region, ami string) (*data.AMIInfo, error) {
-	// Create a new session using the profile and region
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Profile:           profile,
-		Config:            aws.Config{Region: aws.String(region)},
-		SharedConfigState: session.SharedConfigEnable,
-	})
+	ctx := context.Background()
 
+	// Load the AWS configuration using the profile and region
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithSharedConfigProfile(profile),
+		config.WithRegion(region),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create session: %w", err)
+		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
 	// Create an EC2 client
-	svc := ec2.New(sess)
+	svc := ec2.NewFromConfig(cfg)
 
 	// Describe the AMI
-	input := &ec2.DescribeImagesInput{
-		ImageIds: []*string{
-			aws.String(ami),
-		},
-	}
-
-	result, err := svc.DescribeImages(input)
+	result, err := svc.DescribeImages(ctx, &ec2.DescribeImagesInput{
+		ImageIds: []string{ami},
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe AMI %s for profile %s in region %s: %w", ami, profile, region, err)
 	}
@@ -44,15 +41,15 @@ func GetAMIInfo(profile, region, ami string) (*data.AMIInfo, error) {
 		return nil, fmt.Errorf("multiple AMIs found with ID %s", ami)
 	}
 
-	if *result.Images[0].ImageId != ami {
-		return nil, fmt.Errorf("unexpected AMI found with ID %s (searching for %q)", *result.Images[0].ImageId, ami)
+	if aws.ToString(result.Images[0].ImageId) != ami {
+		return nil, fmt.Errorf("unexpected AMI found with ID %s (searching for %q)", aws.ToString(result.Images[0].ImageId), ami)
 	}
 
 	info := data.AMIInfo{
-		ID:           *result.Images[0].ImageId,
-		Name:         *result.Images[0].Name,
-		Architecture: *result.Images[0].Architecture,
-		State:        *result.Images[0].State,
+		ID:           aws.ToString(result.Images[0].ImageId),
+		Name:         aws.ToString(result.Images[0].Name),
+		Architecture: string(result.Images[0].Architecture),
+		State:        string(result.Images[0].State),
 	}
 
 	if result.Images[0].DeprecationTime != nil {

@@ -1,33 +1,34 @@
 package sts
 
 import (
+	"context"
 	"log"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
 func GetAccountID(profile, region string) (string, error) {
-	// Create a new session
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Profile:           profile,
-		Config:            aws.Config{Region: aws.String(region)},
-		SharedConfigState: session.SharedConfigEnable,
-	})
+	ctx := context.Background()
+
+	// Load the AWS configuration using the profile and region
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithSharedConfigProfile(profile),
+		config.WithRegion(region),
+	)
 	if err != nil {
-		log.Fatalf("Failed to create session: %v", err)
+		log.Fatalf("Failed to load config: %v", err)
 	}
 
 	// Create a new STS client
-	stsSvc := sts.New(sess)
+	stsSvc := sts.NewFromConfig(cfg)
 
 	// Call GetCallerIdentity
-	input := &sts.GetCallerIdentityInput{}
-	result, err := stsSvc.GetCallerIdentity(input)
+	result, err := stsSvc.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 	if err != nil {
 		log.Fatalf("Failed to get caller identity: %v", err)
 	}
 
-	return aws.StringValue(result.Account), nil
+	return aws.ToString(result.Account), nil
 }
