@@ -277,20 +277,22 @@ func runGenericListing(clusterList []data.ClusterInfo, resourceType, resourceNam
 func resolveResourceType(discoveryClient *discovery.DiscoveryClient, resourceType string) (schema.GroupVersionResource, bool, error) {
 	// Common short names mapping
 	shortNames := map[string]schema.GroupVersionResource{
-		"po":      {Group: "", Version: "v1", Resource: "pods"},
-		"pod":     {Group: "", Version: "v1", Resource: "pods"},
-		"pods":    {Group: "", Version: "v1", Resource: "pods"},
-		"svc":     {Group: "", Version: "v1", Resource: "services"},
-		"service": {Group: "", Version: "v1", Resource: "services"},
-		"deploy":  {Group: "apps", Version: "v1", Resource: "deployments"},
-		"ds":      {Group: "apps", Version: "v1", Resource: "daemonsets"},
-		"sts":     {Group: "apps", Version: "v1", Resource: "statefulsets"},
-		"cm":      {Group: "", Version: "v1", Resource: "configmaps"},
-		"pdb":     {Group: "policy", Version: "v1", Resource: "poddisruptionbudgets"},
-		"ing":     {Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"},
-		"no":      {Group: "", Version: "v1", Resource: "nodes"},
-		"node":    {Group: "", Version: "v1", Resource: "nodes"},
-		"ns":      {Group: "", Version: "v1", Resource: "namespaces"},
+		"po":            {Group: "", Version: "v1", Resource: "pods"},
+		"pod":           {Group: "", Version: "v1", Resource: "pods"},
+		"pods":          {Group: "", Version: "v1", Resource: "pods"},
+		"svc":           {Group: "", Version: "v1", Resource: "services"},
+		"service":       {Group: "", Version: "v1", Resource: "services"},
+		"deploy":        {Group: "apps", Version: "v1", Resource: "deployments"},
+		"ds":            {Group: "apps", Version: "v1", Resource: "daemonsets"},
+		"sts":           {Group: "apps", Version: "v1", Resource: "statefulsets"},
+		"cm":            {Group: "", Version: "v1", Resource: "configmaps"},
+		"pdb":           {Group: "policy", Version: "v1", Resource: "poddisruptionbudgets"},
+		"ing":           {Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"},
+		"no":            {Group: "", Version: "v1", Resource: "nodes"},
+		"node":          {Group: "", Version: "v1", Resource: "nodes"},
+		"ns":            {Group: "", Version: "v1", Resource: "namespaces"},
+		"pc":            {Group: "scheduling.k8s.io", Version: "v1", Resource: "priorityclasses"},
+		"priorityclass": {Group: "scheduling.k8s.io", Version: "v1", Resource: "priorityclasses"},
 	}
 
 	// Check if it's a known short name

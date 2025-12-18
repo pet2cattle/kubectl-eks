@@ -42,6 +42,20 @@ func PrintGenericResults(results []data.ResourceResult, output string, noHeaders
 		return
 	}
 
+	// Check if all results are PriorityClass
+	isPriorityClass := false
+	for _, result := range results {
+		if strings.ToLower(result.Kind) == "priorityclass" {
+			isPriorityClass = true
+			break
+		}
+	}
+
+	if isPriorityClass {
+		printPriorityClassResults(results, output, noHeaders)
+		return
+	}
+
 	// Table output (default and wide)
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 
@@ -105,6 +119,56 @@ func PrintGenericResults(results []data.ResourceResult, output string, noHeaders
 				status,
 			)
 		}
+	}
+
+	w.Flush()
+}
+
+func printPriorityClassResults(results []data.ResourceResult, output string, noHeaders bool) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+
+	// Print headers
+	if !noHeaders {
+		if output == "wide" {
+			fmt.Fprintln(w, "AWS PROFILE\tAWS REGION\tCLUSTER NAME\tNAME\tVALUE\tGLOBAL-DEFAULT\tAGE\tPREEMPTIONPOLICY")
+		} else {
+			fmt.Fprintln(w, "AWS PROFILE\tAWS REGION\tCLUSTER NAME\tNAME\tVALUE\tGLOBAL-DEFAULT\tAGE\tPREEMPTIONPOLICY")
+		}
+	}
+
+	// Print rows
+	for _, result := range results {
+		if result.Error != "" {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\tERROR: %s\t\t\t\n",
+				result.Profile,
+				result.Region,
+				result.ClusterName,
+				result.Name,
+				result.Error,
+			)
+			continue
+		}
+
+		obj, ok := result.Data.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		value, _, _ := unstructured.NestedInt64(obj, "value")
+		globalDefault, _, _ := unstructured.NestedBool(obj, "globalDefault")
+		preemptionPolicy, _, _ := unstructured.NestedString(obj, "preemptionPolicy")
+		age := extractAge(result.Data)
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%t\t%s\t%s\n",
+			result.Profile,
+			result.Region,
+			result.ClusterName,
+			result.Name,
+			value,
+			globalDefault,
+			age,
+			preemptionPolicy,
+		)
 	}
 
 	w.Flush()
@@ -185,9 +249,34 @@ func extractAdditionalInfo(data interface{}, kind string) string {
 		return extractPVWideInfo(obj)
 	case "ingress":
 		return extractIngressWideInfo(obj)
+	case "priorityclass":
+		return extractPriorityClassWideInfo(obj)
 	default:
 		return "-"
 	}
+}
+
+func extractPriorityClassWideInfo(obj map[string]interface{}) string {
+	value, valueFound, _ := unstructured.NestedInt64(obj, "value")
+	globalDefault, _, _ := unstructured.NestedBool(obj, "globalDefault")
+	preemptionPolicy, _, _ := unstructured.NestedString(obj, "preemptionPolicy")
+
+	info := []string{}
+
+	if valueFound {
+		info = append(info, fmt.Sprintf("Value: %d", value))
+	}
+
+	info = append(info, fmt.Sprintf("GlobalDefault: %t", globalDefault))
+
+	if preemptionPolicy != "" {
+		info = append(info, fmt.Sprintf("Preemption: %s", preemptionPolicy))
+	}
+
+	if len(info) > 0 {
+		return strings.Join(info, " | ")
+	}
+	return "-"
 }
 
 func extractPodWideInfo(obj map[string]interface{}) string {
