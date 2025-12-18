@@ -169,7 +169,7 @@ Use -n to check a specific namespace, use --all to show healthy resources too.`,
 					}
 				}
 			}
-			printutils.PrintHealthDetails(noHeaders, filteredResults)
+			printutils.PrintHealthDetails(noHeaders, filteredResults, clusterSummaries)
 		}
 
 		saveCacheToDisk()
@@ -511,7 +511,7 @@ func init() {
 	mCheckCmd.Flags().StringP("version", "v", "", "Filter by EKS version")
 	mCheckCmd.Flags().StringP("namespace", "n", "", "Kubernetes namespace (default: all namespaces)")
 	mCheckCmd.Flags().Bool("all", false, "Show all resources including healthy ones")
-	mCheckCmd.Flags().BoolP("summary", "S", false, "Show summary per cluster")
+	mCheckCmd.Flags().Bool("summary", false, "Show health summary")
 	mCheckCmd.Flags().Bool("no-headers", false, "Don't print headers")
 
 	// Resource type filters

@@ -9,9 +9,9 @@ import (
 )
 
 // PrintHealthDetails prints only the detailed health check results (no summary)
-func PrintHealthDetails(noHeaders bool, results []data.HealthCheckResult) {
+func PrintHealthDetails(noHeaders bool, results []data.HealthCheckResult, summaries []data.ClusterHealthSummary) {
 	if len(results) == 0 {
-		fmt.Println("All resources are healthy!")
+		PrintHealthSummary(noHeaders, summaries)
 		return
 	}
 
