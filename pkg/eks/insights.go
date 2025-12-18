@@ -1,30 +1,31 @@
 package eks
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/pet2cattle/kubectl-eks/pkg/data"
 )
 
 func DescribeEKSInsight(profile, region, clusterName, insightID string) (*data.EKSInsightInfo, error) {
-	// Create a new session using the profile and region
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Profile:           profile,
-		Config:            aws.Config{Region: aws.String(region)},
-		SharedConfigState: session.SharedConfigEnable,
-	})
+	ctx := context.Background()
 
+	// Load the AWS configuration using the profile and region
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithSharedConfigProfile(profile),
+		config.WithRegion(region),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create session: %w", err)
+		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Create an clients
-	eksSvc := eks.New(sess)
+	// Create an EKS client
+	eksSvc := eks.NewFromConfig(cfg)
 
-	descInsight, err := eksSvc.DescribeInsight(&eks.DescribeInsightInput{
+	descInsight, err := eksSvc.DescribeInsight(ctx, &eks.DescribeInsightInput{
 		ClusterName: aws.String(clusterName),
 		Id:          aws.String(insightID),
 	})
@@ -40,26 +41,18 @@ func DescribeEKSInsight(profile, region, clusterName, insightID string) (*data.E
 	var summary data.CategorySpecificSummary
 
 	for _, eachDeprecationDetail := range descInsight.Insight.CategorySpecificSummary.DeprecationDetails {
-		if eachDeprecationDetail == nil {
-			continue
-		}
 		var deprecationDetail data.DeprecationDetail
-		deprecationDetail.ReplacedWith = aws.StringValue(eachDeprecationDetail.ReplacedWith)
-		deprecationDetail.StartServingReplacementVersion = aws.StringValue(eachDeprecationDetail.StartServingReplacementVersion)
-		deprecationDetail.StopServingVersion = aws.StringValue(eachDeprecationDetail.StopServingVersion)
-		deprecationDetail.Usage = aws.StringValue(eachDeprecationDetail.Usage)
+		deprecationDetail.ReplacedWith = aws.ToString(eachDeprecationDetail.ReplacedWith)
+		deprecationDetail.StartServingReplacementVersion = aws.ToString(eachDeprecationDetail.StartServingReplacementVersion)
+		deprecationDetail.StopServingVersion = aws.ToString(eachDeprecationDetail.StopServingVersion)
+		deprecationDetail.Usage = aws.ToString(eachDeprecationDetail.Usage)
 
 		for _, stat := range eachDeprecationDetail.ClientStats {
-			if stat == nil {
-				continue
-			}
 			clientStat := data.ClientStat{}
 			if stat.LastRequestTime != nil {
 				clientStat.LastRequestTime = *stat.LastRequestTime
 			}
-			if stat.NumberOfRequestsLast30Days != nil {
-				clientStat.NumberOfRequestsLast30Days = *stat.NumberOfRequestsLast30Days
-			}
+			clientStat.NumberOfRequestsLast30Days = int64(stat.NumberOfRequestsLast30Days)
 			if stat.UserAgent != nil {
 				clientStat.UserAgent = *stat.UserAgent
 			}
@@ -69,34 +62,43 @@ func DescribeEKSInsight(profile, region, clusterName, insightID string) (*data.E
 		summary.DeprecationDetails = append(summary.DeprecationDetails, deprecationDetail)
 	}
 
+	// Convert map[string]string to map[string]*string for compatibility
+	var additionalInfo map[string]*string
+	if descInsight.Insight.AdditionalInfo != nil {
+		additionalInfo = make(map[string]*string, len(descInsight.Insight.AdditionalInfo))
+		for k, v := range descInsight.Insight.AdditionalInfo {
+			additionalInfo[k] = aws.String(v)
+		}
+	}
+
 	return &data.EKSInsightInfo{
 		ID:             *descInsight.Insight.Id,
 		Description:    *descInsight.Insight.Description,
-		Category:       *descInsight.Insight.Category,
-		Status:         *descInsight.Insight.InsightStatus.Status,
+		Category:       string(descInsight.Insight.Category),
+		Status:         string(descInsight.Insight.InsightStatus.Status),
 		Reason:         *descInsight.Insight.InsightStatus.Reason,
 		Summary:        &summary,
 		Recommendation: *descInsight.Insight.Recommendation,
-		AdditionalInfo: &descInsight.Insight.AdditionalInfo,
+		AdditionalInfo: &additionalInfo,
 	}, nil
 }
 
 func GetEKSInsights(profile, region, clusterName string) ([]data.EKSInsightInfo, error) {
-	// Create a new session using the profile and region
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Profile:           profile,
-		Config:            aws.Config{Region: aws.String(region)},
-		SharedConfigState: session.SharedConfigEnable,
-	})
+	ctx := context.Background()
 
+	// Load the AWS configuration using the profile and region
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithSharedConfigProfile(profile),
+		config.WithRegion(region),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create session: %w", err)
+		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Create an clients
-	eksSvc := eks.New(sess)
+	// Create an EKS client
+	eksSvc := eks.NewFromConfig(cfg)
 
-	insightsList, err := eksSvc.ListInsights(&eks.ListInsightsInput{
+	insightsList, err := eksSvc.ListInsights(ctx, &eks.ListInsightsInput{
 		ClusterName: aws.String(clusterName),
 	})
 
@@ -107,15 +109,11 @@ func GetEKSInsights(profile, region, clusterName string) ([]data.EKSInsightInfo,
 	insightsInfoList := []data.EKSInsightInfo{}
 
 	for _, insight := range insightsList.Insights {
-		if insight == nil {
-			continue
-		}
-
-		if insight.Id != nil && insight.InsightStatus.Reason != nil && insight.InsightStatus.Status != nil {
+		if insight.Id != nil && insight.InsightStatus != nil {
 			insightsInfoList = append(insightsInfoList, data.EKSInsightInfo{
 				ID:       *insight.Id,
-				Category: *insight.Category,
-				Status:   *insight.InsightStatus.Status,
+				Category: string(insight.Category),
+				Status:   string(insight.InsightStatus.Status),
 				Reason:   *insight.InsightStatus.Reason,
 				Summary:  nil,
 			})
