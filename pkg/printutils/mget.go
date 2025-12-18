@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/pet2cattle/kubectl-eks/pkg/data"
 	"gopkg.in/yaml.v3"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/cli-runtime/pkg/printers"
 )
 
 func PrintGenericResults(results []data.ResourceResult, output string, noHeaders bool) {
@@ -52,43 +53,78 @@ func PrintGenericResults(results []data.ResourceResult, output string, noHeaders
 	}
 
 	if isPriorityClass {
-		printPriorityClassResults(results, output, noHeaders)
+		printPriorityClassResults(results, noHeaders)
 		return
 	}
 
-	// Table output (default and wide)
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
 
-	// Print headers
-	if !noHeaders {
-		if output == "wide" {
-			fmt.Fprintln(w, "AWS PROFILE\tAWS REGION\tCLUSTER NAME\tNAMESPACE\tKIND\tNAME\tSTATUS\tAGE\tADDITIONAL INFO")
-		} else {
-			fmt.Fprintln(w, "AWS PROFILE\tAWS REGION\tCLUSTER NAME\tNAMESPACE\tKIND\tNAME\tSTATUS")
+	var table *v1.Table
+	if output == "wide" {
+		table = &v1.Table{
+			ColumnDefinitions: []v1.TableColumnDefinition{
+				{Name: "AWS PROFILE", Type: "string"},
+				{Name: "AWS REGION", Type: "string"},
+				{Name: "CLUSTER NAME", Type: "string"},
+				{Name: "NAMESPACE", Type: "string"},
+				{Name: "KIND", Type: "string"},
+				{Name: "NAME", Type: "string"},
+				{Name: "STATUS", Type: "string"},
+				{Name: "AGE", Type: "string"},
+				{Name: "ADDITIONAL INFO", Type: "string"},
+			},
+		}
+	} else {
+		table = &v1.Table{
+			ColumnDefinitions: []v1.TableColumnDefinition{
+				{Name: "AWS PROFILE", Type: "string"},
+				{Name: "AWS REGION", Type: "string"},
+				{Name: "CLUSTER NAME", Type: "string"},
+				{Name: "NAMESPACE", Type: "string"},
+				{Name: "KIND", Type: "string"},
+				{Name: "NAME", Type: "string"},
+				{Name: "STATUS", Type: "string"},
+			},
 		}
 	}
 
-	// Print rows
 	for _, result := range results {
 		namespace := result.Namespace
 		if namespace == "" {
-			namespace = "-" // For cluster-scoped resources
+			namespace = "-"
 		}
 
 		if result.Error != "" {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\tERROR: %s\n",
-				result.Profile,
-				result.Region,
-				result.ClusterName,
-				namespace,
-				result.Kind,
-				result.Name,
-				result.Error,
-			)
+			if output == "wide" {
+				table.Rows = append(table.Rows, v1.TableRow{
+					Cells: []interface{}{
+						result.Profile,
+						result.Region,
+						result.ClusterName,
+						namespace,
+						result.Kind,
+						result.Name,
+						fmt.Sprintf("ERROR: %s", result.Error),
+						"-",
+						"-",
+					},
+				})
+			} else {
+				table.Rows = append(table.Rows, v1.TableRow{
+					Cells: []interface{}{
+						result.Profile,
+						result.Region,
+						result.ClusterName,
+						namespace,
+						result.Kind,
+						result.Name,
+						fmt.Sprintf("ERROR: %s", result.Error),
+					},
+				})
+			}
 			continue
 		}
 
-		// Use the Status field that was already calculated
 		status := result.Status
 		if status == "" {
 			status = "-"
@@ -97,55 +133,71 @@ func PrintGenericResults(results []data.ResourceResult, output string, noHeaders
 		if output == "wide" {
 			age := extractAge(result.Data)
 			additionalInfo := extractAdditionalInfo(result.Data, result.Kind)
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-				result.Profile,
-				result.Region,
-				result.ClusterName,
-				namespace,
-				result.Kind,
-				result.Name,
-				status,
-				age,
-				additionalInfo,
-			)
+			table.Rows = append(table.Rows, v1.TableRow{
+				Cells: []interface{}{
+					result.Profile,
+					result.Region,
+					result.ClusterName,
+					namespace,
+					result.Kind,
+					result.Name,
+					status,
+					age,
+					additionalInfo,
+				},
+			})
 		} else {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-				result.Profile,
-				result.Region,
-				result.ClusterName,
-				namespace,
-				result.Kind,
-				result.Name,
-				status,
-			)
+			table.Rows = append(table.Rows, v1.TableRow{
+				Cells: []interface{}{
+					result.Profile,
+					result.Region,
+					result.ClusterName,
+					namespace,
+					result.Kind,
+					result.Name,
+					status,
+				},
+			})
 		}
 	}
 
-	w.Flush()
+	err := printer.PrintObj(table, os.Stdout)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
+		os.Exit(1)
+	}
 }
 
-func printPriorityClassResults(results []data.ResourceResult, output string, noHeaders bool) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+func printPriorityClassResults(results []data.ResourceResult, noHeaders bool) {
+	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
 
-	// Print headers
-	if !noHeaders {
-		if output == "wide" {
-			fmt.Fprintln(w, "AWS PROFILE\tAWS REGION\tCLUSTER NAME\tNAME\tVALUE\tGLOBAL-DEFAULT\tAGE\tPREEMPTIONPOLICY")
-		} else {
-			fmt.Fprintln(w, "AWS PROFILE\tAWS REGION\tCLUSTER NAME\tNAME\tVALUE\tGLOBAL-DEFAULT\tAGE\tPREEMPTIONPOLICY")
-		}
+	table := &v1.Table{
+		ColumnDefinitions: []v1.TableColumnDefinition{
+			{Name: "AWS PROFILE", Type: "string"},
+			{Name: "AWS REGION", Type: "string"},
+			{Name: "CLUSTER NAME", Type: "string"},
+			{Name: "NAME", Type: "string"},
+			{Name: "VALUE", Type: "integer"},
+			{Name: "GLOBAL-DEFAULT", Type: "boolean"},
+			{Name: "AGE", Type: "string"},
+			{Name: "PREEMPTIONPOLICY", Type: "string"},
+		},
 	}
 
-	// Print rows
 	for _, result := range results {
 		if result.Error != "" {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\tERROR: %s\t\t\t\n",
-				result.Profile,
-				result.Region,
-				result.ClusterName,
-				result.Name,
-				result.Error,
-			)
+			table.Rows = append(table.Rows, v1.TableRow{
+				Cells: []interface{}{
+					result.Profile,
+					result.Region,
+					result.ClusterName,
+					result.Name,
+					fmt.Sprintf("ERROR: %s", result.Error),
+					"",
+					"",
+					"",
+				},
+			})
 			continue
 		}
 
@@ -159,19 +211,25 @@ func printPriorityClassResults(results []data.ResourceResult, output string, noH
 		preemptionPolicy, _, _ := unstructured.NestedString(obj, "preemptionPolicy")
 		age := extractAge(result.Data)
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%t\t%s\t%s\n",
-			result.Profile,
-			result.Region,
-			result.ClusterName,
-			result.Name,
-			value,
-			globalDefault,
-			age,
-			preemptionPolicy,
-		)
+		table.Rows = append(table.Rows, v1.TableRow{
+			Cells: []interface{}{
+				result.Profile,
+				result.Region,
+				result.ClusterName,
+				result.Name,
+				value,
+				globalDefault,
+				age,
+				preemptionPolicy,
+			},
+		})
 	}
 
-	w.Flush()
+	err := printer.PrintObj(table, os.Stdout)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 // extractAge extracts the age of a resource from its creation timestamp
@@ -195,7 +253,6 @@ func extractAge(data interface{}) string {
 }
 
 func extractNodeWideInfo(obj map[string]interface{}) string {
-	// Get node addresses
 	addresses, found, _ := unstructured.NestedSlice(obj, "status", "addresses")
 	if !found {
 		return "-"
