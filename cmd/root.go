@@ -109,7 +109,7 @@ func loadClusterByArn(clusterArn string) *data.ClusterInfo {
 	if err != nil || clusterDesc == nil {
 		fmt.Fprintf(os.Stderr, "Error describing cluster %s: %v\n", clusterInfo.ClusterName, err.Error())
 	} else {
-		clusterInfo.Status = *clusterDesc.Status
+		clusterInfo.Status = string(clusterDesc.Status)
 		clusterInfo.Version = *clusterDesc.Version
 		clusterInfo.Arn = *clusterDesc.Arn
 		clusterInfo.CreatedAt = clusterDesc.CreatedAt.Format("2006-01-02 15:04:05")

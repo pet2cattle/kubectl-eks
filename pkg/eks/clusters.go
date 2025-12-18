@@ -1,63 +1,67 @@
 package eks
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+	"github.com/aws/aws-sdk-go-v2/service/eks/types"
 )
 
 func GetClusters(profile, region string) ([]*string, error) {
-	// Create a new session using the profile and region
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Profile:           profile,
-		Config:            aws.Config{Region: aws.String(region)},
-		SharedConfigState: session.SharedConfigEnable,
-	})
+	ctx := context.Background()
 
+	// Load the AWS configuration using the profile and region
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithSharedConfigProfile(profile),
+		config.WithRegion(region),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create session: %w", err)
+		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
 	// Create an EKS client
-	svc := eks.New(sess)
+	client := eks.NewFromConfig(cfg)
 
 	// List EKS clusters in the specified region
-	input := &eks.ListClustersInput{}
-	result, err := svc.ListClusters(input)
+	result, err := client.ListClusters(ctx, &eks.ListClustersInput{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list clusters for profile %s in region %s: %w", profile, region, err)
 	}
 
-	// Return the cluster names
-	return result.Clusters, nil
+	// Convert []string to []*string for compatibility
+	clusters := make([]*string, len(result.Clusters))
+	for i, name := range result.Clusters {
+		clusters[i] = aws.String(name)
+	}
+
+	return clusters, nil
 }
 
-func DescribeCluster(profile, region, clusterName string) (*eks.Cluster, error) {
-	// Create a new session using the profile and region
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Profile:           profile,
-		Config:            aws.Config{Region: aws.String(region)},
-		SharedConfigState: session.SharedConfigEnable,
-	})
+func DescribeCluster(profile, region, clusterName string) (*types.Cluster, error) {
+	ctx := context.Background()
 
+	// Load the AWS configuration using the profile and region
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithSharedConfigProfile(profile),
+		config.WithRegion(region),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create session: %w", err)
+		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
 	// Create an EKS client
-	svc := eks.New(sess)
+	client := eks.NewFromConfig(cfg)
 
 	// Describe the EKS cluster
-	input := &eks.DescribeClusterInput{
+	result, err := client.DescribeCluster(ctx, &eks.DescribeClusterInput{
 		Name: aws.String(clusterName),
-	}
-	result, err := svc.DescribeCluster(input)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe cluster %s for profile %s in region %s: %w", clusterName, profile, region, err)
 	}
 
-	// Return the cluster
 	return result.Cluster, nil
 }

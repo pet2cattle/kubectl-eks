@@ -193,7 +193,7 @@ func loadClusters(profile, region string) {
 		if err != nil || clusterInfo == nil {
 			fmt.Fprintf(os.Stderr, "Error describing cluster %s: %v\n", *cluster, err.Error())
 		} else {
-			clusterData.Status = *clusterInfo.Status
+			clusterData.Status = string(clusterInfo.Status)
 			clusterData.Version = *clusterInfo.Version
 			clusterData.Arn = *clusterInfo.Arn
 			clusterData.CreatedAt = clusterInfo.CreatedAt.Format("2006-01-02 15:04:05")
