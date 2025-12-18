@@ -1,12 +1,13 @@
 package eks
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 )
 
 type EKSNodeGroupInfo struct {
@@ -23,27 +24,25 @@ type EKSNodeGroupInfo struct {
 }
 
 func GetEKSNodeGroups(profile, region, clusterName string) ([]EKSNodeGroupInfo, error) {
-	// Create a new session using the profile and region
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Profile:           profile,
-		Config:            aws.Config{Region: aws.String(region)},
-		SharedConfigState: session.SharedConfigEnable,
-	})
+	ctx := context.Background()
 
+	// Load the AWS configuration using the profile and region
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithSharedConfigProfile(profile),
+		config.WithRegion(region),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create session: %w", err)
+		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Create an clients
-	eksSvc := eks.New(sess)
-	ec2Svc := ec2.New(sess)
-
-	input := &eks.ListNodegroupsInput{
-		ClusterName: aws.String(clusterName),
-	}
+	// Create clients
+	eksSvc := eks.NewFromConfig(cfg)
+	ec2Svc := ec2.NewFromConfig(cfg)
 
 	// Get NG names
-	result, err := eksSvc.ListNodegroups(input)
+	result, err := eksSvc.ListNodegroups(ctx, &eks.ListNodegroupsInput{
+		ClusterName: aws.String(clusterName),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list node groups for cluster %s in region %s: %w", clusterName, region, err)
 	}
@@ -51,44 +50,49 @@ func GetEKSNodeGroups(profile, region, clusterName string) ([]EKSNodeGroupInfo, 
 	ngList := make([]EKSNodeGroupInfo, len(result.Nodegroups))
 
 	for i, ng := range result.Nodegroups {
-		if ng != nil {
-			// describe NodeGroup
-			ngDesc, err := eksSvc.DescribeNodegroup(&eks.DescribeNodegroupInput{
-				ClusterName:   aws.String(clusterName),
-				NodegroupName: ng,
-			})
+		// describe NodeGroup
+		ngDesc, err := eksSvc.DescribeNodegroup(ctx, &eks.DescribeNodegroupInput{
+			ClusterName:   aws.String(clusterName),
+			NodegroupName: aws.String(ng),
+		})
 
-			if err != nil {
-				continue
-			}
+		if err != nil {
+			continue
+		}
 
-			if ngDesc.Nodegroup == nil {
-				continue
-			}
+		if ngDesc.Nodegroup == nil {
+			continue
+		}
 
-			instanceType := ""
+		instanceType := ""
 
-			ltDesc, err := ec2Svc.DescribeLaunchTemplateVersions(&ec2.DescribeLaunchTemplateVersionsInput{
+		if ngDesc.Nodegroup.LaunchTemplate != nil {
+			ltDesc, err := ec2Svc.DescribeLaunchTemplateVersions(ctx, &ec2.DescribeLaunchTemplateVersionsInput{
 				LaunchTemplateId: ngDesc.Nodegroup.LaunchTemplate.Id,
-				Versions:         []*string{ngDesc.Nodegroup.LaunchTemplate.Version},
+				Versions:         []string{aws.ToString(ngDesc.Nodegroup.LaunchTemplate.Version)},
 			})
 
-			if err == nil && len(ltDesc.LaunchTemplateVersions) > 0 {
-				instanceType = *ltDesc.LaunchTemplateVersions[0].LaunchTemplateData.InstanceType
+			if err == nil && len(ltDesc.LaunchTemplateVersions) > 0 && ltDesc.LaunchTemplateVersions[0].LaunchTemplateData != nil {
+				instanceType = string(ltDesc.LaunchTemplateVersions[0].LaunchTemplateData.InstanceType)
 			}
+		}
 
-			ngList[i] = EKSNodeGroupInfo{
-				Name:            *ng,
-				CapacityType:    *ngDesc.Nodegroup.CapacityType,
-				ReleaseVersion:  *ngDesc.Nodegroup.ReleaseVersion,
-				InstanceType:    instanceType,
-				LaunchTemplate:  *ngDesc.Nodegroup.LaunchTemplate.Id,
-				DesiredCapacity: *ngDesc.Nodegroup.ScalingConfig.DesiredSize,
-				MaxCapacity:     *ngDesc.Nodegroup.ScalingConfig.MaxSize,
-				MinCapacity:     *ngDesc.Nodegroup.ScalingConfig.MinSize,
-				Version:         *ngDesc.Nodegroup.Version,
-				Status:          *ngDesc.Nodegroup.Status,
-			}
+		launchTemplateID := ""
+		if ngDesc.Nodegroup.LaunchTemplate != nil {
+			launchTemplateID = aws.ToString(ngDesc.Nodegroup.LaunchTemplate.Id)
+		}
+
+		ngList[i] = EKSNodeGroupInfo{
+			Name:            ng,
+			CapacityType:    string(ngDesc.Nodegroup.CapacityType),
+			ReleaseVersion:  aws.ToString(ngDesc.Nodegroup.ReleaseVersion),
+			InstanceType:    instanceType,
+			LaunchTemplate:  launchTemplateID,
+			DesiredCapacity: int64(aws.ToInt32(ngDesc.Nodegroup.ScalingConfig.DesiredSize)),
+			MaxCapacity:     int64(aws.ToInt32(ngDesc.Nodegroup.ScalingConfig.MaxSize)),
+			MinCapacity:     int64(aws.ToInt32(ngDesc.Nodegroup.ScalingConfig.MinSize)),
+			Version:         aws.ToString(ngDesc.Nodegroup.Version),
+			Status:          string(ngDesc.Nodegroup.Status),
 		}
 	}
 

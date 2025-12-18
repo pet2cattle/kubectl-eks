@@ -13,9 +13,10 @@ import (
 )
 
 var nodegroupsCmd = &cobra.Command{
-	Use:   "nodegroups",
-	Short: "List EKS nodegroups",
-	Long:  `List EKS nodegroups for a given cluster (or the current one if not specified)`,
+	Use:     "nodegroups",
+	Aliases: []string{"ng"},
+	Short:   "List EKS nodegroups",
+	Long:    `List EKS nodegroups for a given cluster (or the current one if not specified)`,
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterArn := ""
 
