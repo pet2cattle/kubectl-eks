@@ -62,6 +62,7 @@ kubectl-eks [flags]
 * [kubectl-eks fargate-profiles](kubectl-eks_fargate-profiles.md)	 - List EKS Fargate profiles
 * [kubectl-eks insights](kubectl-eks_insights.md)	 - Get insights about an EKS cluster
 * [kubectl-eks list](kubectl-eks_list.md)	 - List all EKS clusters in your AWS account
+* [kubectl-eks mcheck](kubectl-eks_mcheck.md)	 - Check health status of resources across multiple clusters
 * [kubectl-eks mget](kubectl-eks_mget.md)	 - Get resources from multiple clusters
 * [kubectl-eks nodegroups](kubectl-eks_nodegroups.md)	 - List EKS nodegroups
 * [kubectl-eks nodes](kubectl-eks_nodes.md)	 - List EKS nodes
