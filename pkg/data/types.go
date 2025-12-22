@@ -1,6 +1,8 @@
 package data
 
-import "time"
+import (
+	"time"
+)
 
 type ClusterInfo struct {
 	ClusterName  string
@@ -11,6 +13,22 @@ type ClusterInfo struct {
 	Version      string
 	Arn          string
 	CreatedAt    string
+}
+
+type ClusterNodeInfo struct {
+	Profile     string
+	Region      string
+	ClusterName string
+	Node        NodeInfo
+}
+
+type NodeInfo struct {
+	Name         string
+	InstanceType string
+	Compute      string
+	ManagedBy    string
+	Created      time.Time
+	Status       string
 }
 
 type KubeCtlEksCache struct {

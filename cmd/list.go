@@ -116,7 +116,7 @@ You can filter by cluster name, region, version, or AWS profile.`,
 
 				currentClusterList, exists := CachedData.ClusterList[profileDetails.Name][hintRegion]
 				if !exists {
-					fmt.Fprintf(os.Stderr, "Unable to load clusters using profile: %s region: %s\n", profileDetails.Name, hintRegion)
+					fmt.Fprintf(os.Stderr, "Unable to load clusters using profile: %s region: %s (listCmd)\n", profileDetails.Name, hintRegion)
 				} else {
 					if version == "" && name_contains == "" && name_not_contains == "" {
 						clusterList = append(clusterList, currentClusterList...)

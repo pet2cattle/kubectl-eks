@@ -14,6 +14,7 @@ import (
 	"github.com/pet2cattle/kubectl-eks/pkg/sts"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 var KubernetesConfigFlags *genericclioptions.ConfigFlags
@@ -127,6 +128,42 @@ func loadClusterByArn(clusterArn string) *data.ClusterInfo {
 	CachedData.ClusterByARN[clusterArn] = clusterInfo
 
 	return &clusterInfo
+}
+
+func GetCurrentClusterInfo() (data.ClusterInfo, error) {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	config, err := loadingRules.Load()
+	if err != nil {
+		return data.ClusterInfo{}, err
+	}
+
+	context := config.Contexts[config.CurrentContext]
+	if context == nil {
+		return data.ClusterInfo{}, fmt.Errorf("no current context")
+	}
+
+	clusterArn := context.Cluster
+
+	loadCacheFromDisk()
+	if CachedData == nil {
+		CachedData = &data.KubeCtlEksCache{
+			ClusterByARN: make(map[string]data.ClusterInfo),
+			ClusterList:  make(map[string]map[string][]data.ClusterInfo),
+		}
+	}
+
+	clusterInfo, exists := CachedData.ClusterByARN[clusterArn]
+
+	// Refresh if not in cache, ARN mismatch, or missing AWSProfile
+	if !exists || clusterInfo.Arn != clusterArn || clusterInfo.AWSProfile == "" {
+		foundClusterInfo := loadClusterByArn(clusterArn)
+		if foundClusterInfo == nil {
+			return data.ClusterInfo{ClusterName: clusterArn}, nil
+		}
+		clusterInfo = *foundClusterInfo
+	}
+
+	return clusterInfo, nil
 }
 
 var rootCmd = &cobra.Command{

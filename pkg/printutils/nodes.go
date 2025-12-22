@@ -3,44 +3,45 @@ package printutils
 import (
 	"fmt"
 	"os"
-	"sort"
-	"time"
 
-	"github.com/pet2cattle/kubectl-eks/pkg/k8s"
+	"github.com/pet2cattle/kubectl-eks/pkg/data"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/printers"
 )
 
-func PrintNodes(noHeaders bool, nodes ...k8s.NodeInfo) {
-	sort.Slice(nodes, func(i, j int) bool {
-		return nodes[i].Name < nodes[j].Name
-	})
+func PrintMultiClusterNodes(noHeaders bool, nodes []data.ClusterNodeInfo) {
+	if len(nodes) == 0 {
+		return
+	}
 
 	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
 
 	table := &v1.Table{
 		ColumnDefinitions: []v1.TableColumnDefinition{
-			{Name: "NODE NAME", Type: "string"},
+			{Name: "AWS PROFILE", Type: "string"},
+			{Name: "AWS REGION", Type: "string"},
+			{Name: "CLUSTER NAME", Type: "string"},
+			{Name: "NAME", Type: "string"},
+			{Name: "STATUS", Type: "string"},
 			{Name: "INSTANCE TYPE", Type: "string"},
 			{Name: "COMPUTE", Type: "string"},
 			{Name: "MANAGED BY", Type: "string"},
 			{Name: "AGE", Type: "string"},
-			{Name: "STATUS", Type: "string"},
 		},
 	}
 
-	for _, node := range nodes {
-		age := duration.ShortHumanDuration(time.Since(node.Created))
-
+	for _, n := range nodes {
 		table.Rows = append(table.Rows, v1.TableRow{
 			Cells: []interface{}{
-				node.Name,
-				node.InstanceType,
-				node.Compute,
-				node.ManagedBy,
-				age,
-				node.Status,
+				n.Profile,
+				n.Region,
+				n.ClusterName,
+				n.Node.Name,
+				n.Node.Status,
+				n.Node.InstanceType,
+				n.Node.Compute,
+				n.Node.ManagedBy,
+				formatAge(n.Node.Created),
 			},
 		})
 	}
