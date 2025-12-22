@@ -57,107 +57,157 @@ func PrintGenericResults(results []data.ResourceResult, output string, noHeaders
 		return
 	}
 
+	// Check if results are cluster-scoped (no namespace)
+	isClusterScoped := true
+	for _, result := range results {
+		if result.Namespace != "" {
+			isClusterScoped = false
+			break
+		}
+	}
+
 	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
 
 	var table *v1.Table
 	if output == "wide" {
-		table = &v1.Table{
-			ColumnDefinitions: []v1.TableColumnDefinition{
-				{Name: "AWS PROFILE", Type: "string"},
-				{Name: "AWS REGION", Type: "string"},
-				{Name: "CLUSTER NAME", Type: "string"},
-				{Name: "NAMESPACE", Type: "string"},
-				{Name: "KIND", Type: "string"},
-				{Name: "NAME", Type: "string"},
-				{Name: "STATUS", Type: "string"},
-				{Name: "AGE", Type: "string"},
-				{Name: "ADDITIONAL INFO", Type: "string"},
-			},
+		if isClusterScoped {
+			table = &v1.Table{
+				ColumnDefinitions: []v1.TableColumnDefinition{
+					{Name: "AWS PROFILE", Type: "string"},
+					{Name: "AWS REGION", Type: "string"},
+					{Name: "CLUSTER NAME", Type: "string"},
+					{Name: "KIND", Type: "string"},
+					{Name: "NAME", Type: "string"},
+					{Name: "STATUS", Type: "string"},
+					{Name: "AGE", Type: "string"},
+					{Name: "ADDITIONAL INFO", Type: "string"},
+				},
+			}
+		} else {
+			table = &v1.Table{
+				ColumnDefinitions: []v1.TableColumnDefinition{
+					{Name: "AWS PROFILE", Type: "string"},
+					{Name: "AWS REGION", Type: "string"},
+					{Name: "CLUSTER NAME", Type: "string"},
+					{Name: "NAMESPACE", Type: "string"},
+					{Name: "KIND", Type: "string"},
+					{Name: "NAME", Type: "string"},
+					{Name: "STATUS", Type: "string"},
+					{Name: "AGE", Type: "string"},
+					{Name: "ADDITIONAL INFO", Type: "string"},
+				},
+			}
 		}
 	} else {
-		table = &v1.Table{
-			ColumnDefinitions: []v1.TableColumnDefinition{
-				{Name: "AWS PROFILE", Type: "string"},
-				{Name: "AWS REGION", Type: "string"},
-				{Name: "CLUSTER NAME", Type: "string"},
-				{Name: "NAMESPACE", Type: "string"},
-				{Name: "KIND", Type: "string"},
-				{Name: "NAME", Type: "string"},
-				{Name: "STATUS", Type: "string"},
-			},
+		if isClusterScoped {
+			table = &v1.Table{
+				ColumnDefinitions: []v1.TableColumnDefinition{
+					{Name: "AWS PROFILE", Type: "string"},
+					{Name: "AWS REGION", Type: "string"},
+					{Name: "CLUSTER NAME", Type: "string"},
+					{Name: "KIND", Type: "string"},
+					{Name: "NAME", Type: "string"},
+					{Name: "STATUS", Type: "string"},
+					{Name: "AGE", Type: "string"},
+				},
+			}
+		} else {
+			table = &v1.Table{
+				ColumnDefinitions: []v1.TableColumnDefinition{
+					{Name: "AWS PROFILE", Type: "string"},
+					{Name: "AWS REGION", Type: "string"},
+					{Name: "CLUSTER NAME", Type: "string"},
+					{Name: "NAMESPACE", Type: "string"},
+					{Name: "KIND", Type: "string"},
+					{Name: "NAME", Type: "string"},
+					{Name: "STATUS", Type: "string"},
+					{Name: "AGE", Type: "string"},
+				},
+			}
 		}
 	}
 
 	for _, result := range results {
-		namespace := result.Namespace
-		if namespace == "" {
-			namespace = "-"
-		}
-
-		if result.Error != "" {
-			if output == "wide" {
-				table.Rows = append(table.Rows, v1.TableRow{
-					Cells: []interface{}{
-						result.Profile,
-						result.Region,
-						result.ClusterName,
-						namespace,
-						result.Kind,
-						result.Name,
-						fmt.Sprintf("ERROR: %s", result.Error),
-						"-",
-						"-",
-					},
-				})
-			} else {
-				table.Rows = append(table.Rows, v1.TableRow{
-					Cells: []interface{}{
-						result.Profile,
-						result.Region,
-						result.ClusterName,
-						namespace,
-						result.Kind,
-						result.Name,
-						fmt.Sprintf("ERROR: %s", result.Error),
-					},
-				})
-			}
-			continue
-		}
-
 		status := result.Status
 		if status == "" {
 			status = "-"
 		}
+		age := extractAge(result.Data)
+
+		if result.Error != "" {
+			status = fmt.Sprintf("ERROR: %s", result.Error)
+			age = "-"
+		}
 
 		if output == "wide" {
-			age := extractAge(result.Data)
-			additionalInfo := extractAdditionalInfo(result.Data, result.Kind)
-			table.Rows = append(table.Rows, v1.TableRow{
-				Cells: []interface{}{
-					result.Profile,
-					result.Region,
-					result.ClusterName,
-					namespace,
-					result.Kind,
-					result.Name,
-					status,
-					age,
-					additionalInfo,
-				},
-			})
+			additionalInfo := "-"
+			if result.Error == "" {
+				additionalInfo = extractAdditionalInfo(result.Data, result.Kind)
+			}
+
+			if isClusterScoped {
+				table.Rows = append(table.Rows, v1.TableRow{
+					Cells: []interface{}{
+						result.Profile,
+						result.Region,
+						result.ClusterName,
+						result.Kind,
+						result.Name,
+						status,
+						age,
+						additionalInfo,
+					},
+				})
+			} else {
+				namespace := result.Namespace
+				if namespace == "" {
+					namespace = "-"
+				}
+				table.Rows = append(table.Rows, v1.TableRow{
+					Cells: []interface{}{
+						result.Profile,
+						result.Region,
+						result.ClusterName,
+						namespace,
+						result.Kind,
+						result.Name,
+						status,
+						age,
+						additionalInfo,
+					},
+				})
+			}
 		} else {
-			table.Rows = append(table.Rows, v1.TableRow{
-				Cells: []interface{}{
-					result.Profile,
-					result.Region,
-					result.ClusterName,
-					namespace,
-					result.Kind,
-					result.Name,
-					status,
-				},
-			})
+			if isClusterScoped {
+				table.Rows = append(table.Rows, v1.TableRow{
+					Cells: []interface{}{
+						result.Profile,
+						result.Region,
+						result.ClusterName,
+						result.Kind,
+						result.Name,
+						status,
+						age,
+					},
+				})
+			} else {
+				namespace := result.Namespace
+				if namespace == "" {
+					namespace = "-"
+				}
+				table.Rows = append(table.Rows, v1.TableRow{
+					Cells: []interface{}{
+						result.Profile,
+						result.Region,
+						result.ClusterName,
+						namespace,
+						result.Kind,
+						result.Name,
+						status,
+						age,
+					},
+				})
+			}
 		}
 	}
 
