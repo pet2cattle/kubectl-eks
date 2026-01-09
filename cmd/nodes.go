@@ -13,8 +13,9 @@ import (
 )
 
 var nodesCmd = &cobra.Command{
-	Use:   "nodes",
-	Short: "List EKS nodes",
+	Use:     "nodes",
+	Aliases: []string{"node"},
+	Short:   "List EKS nodes",
 	Long: `List EKS nodes for one or more clusters.
 
 When cluster filters are provided, queries multiple clusters.
