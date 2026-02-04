@@ -26,16 +26,24 @@ func GetNodesWithConfig(restConfig *rest.Config) ([]data.NodeInfo, error) {
 	for _, node := range nodes.Items {
 		labels := node.Labels
 
+		// Compute type (EC2 or Fargate)
+		compute := "EC2"
+		if labels["eks.amazonaws.com/compute-type"] == "fargate" {
+			compute = "Fargate"
+		}
+
 		// Instance type
 		instanceType := labels["node.kubernetes.io/instance-type"]
 		if instanceType == "" {
 			instanceType = labels["beta.kubernetes.io/instance-type"]
 		}
 
-		// Compute type (EC2 or Fargate)
-		compute := "EC2"
-		if labels["eks.amazonaws.com/compute-type"] == "fargate" {
-			compute = "Fargate"
+		// For Fargate, show capacity instead
+		if compute == "Fargate" && instanceType == "" {
+			cpu := node.Status.Capacity.Cpu().String()
+			mem := node.Status.Capacity.Memory()
+			memGi := mem.Value() / (1024 * 1024 * 1024)
+			instanceType = fmt.Sprintf("%svCPU/%dGi", cpu, memGi)
 		}
 
 		// Managed by (nodegroup, Fargate profile, or Karpenter)
