@@ -6,6 +6,7 @@ import (
 
 type ClusterInfo struct {
 	ClusterName  string
+	Namespace    string
 	Region       string
 	AWSProfile   string
 	AWSAccountID string

@@ -214,6 +214,11 @@ Prerequisites:
 
 		clusterArn := contextDetails.Cluster
 
+		currentNamespace, err := k8s.GetCurrentNamespace()
+		if err != nil {
+			currentNamespace = ""
+		}
+
 		if region != "" {
 			// arn:aws:eks:us-east-1:123456789123:cluster/demo
 
@@ -226,11 +231,6 @@ Prerequisites:
 			}
 
 			newClusterArn := fmt.Sprintf("arn:aws:eks:%s:%s:cluster/%s", region, matches[2], matches[3])
-
-			currentNamespace, err := k8s.GetCurrentNamespace()
-			if err != nil {
-				currentNamespace = ""
-			}
 
 			SwitchToCluster(newClusterArn, currentNamespace, "")
 
@@ -268,6 +268,12 @@ Prerequisites:
 				} else {
 					clusterInfo = *foundClusterInfo
 				}
+			}
+
+			if currentNamespace == "" {
+				clusterInfo.Namespace = "default"
+			} else {
+				clusterInfo.Namespace = currentNamespace
 			}
 
 			noHeaders, err := cmd.Flags().GetBool("no-headers")

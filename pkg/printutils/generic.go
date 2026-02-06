@@ -127,33 +127,67 @@ func PrintClusters(noHeaders bool, clusterInfos ...data.ClusterInfo) {
 	printer := printers.NewTablePrinter(printers.PrintOptions{NoHeaders: noHeaders})
 
 	// Create a Table object
-	table := &v1.Table{
-		ColumnDefinitions: []v1.TableColumnDefinition{
-			// {Name: "AWS ACCOUNT ID", Type: "string"},
-			{Name: "AWS PROFILE", Type: "string"},
-			{Name: "AWS REGION", Type: "string"},
-			{Name: "CLUSTER NAME", Type: "string"},
-			{Name: "STATUS", Type: "string"},
-			{Name: "VERSION", Type: "string"},
-			{Name: "CREATED", Type: "string"},
-			{Name: "ARN", Type: "string"},
-		},
+	var table *v1.Table
+
+	if len(clusterInfos) == 1 && clusterInfos[0].Namespace != "" {
+		table = &v1.Table{
+			ColumnDefinitions: []v1.TableColumnDefinition{
+				// {Name: "AWS ACCOUNT ID", Type: "string"},
+				{Name: "AWS PROFILE", Type: "string"},
+				{Name: "AWS REGION", Type: "string"},
+				{Name: "CLUSTER NAME", Type: "string"},
+				{Name: "NAMESPACE", Type: "string"},
+				{Name: "STATUS", Type: "string"},
+				{Name: "VERSION", Type: "string"},
+				{Name: "CREATED", Type: "string"},
+				{Name: "ARN", Type: "string"},
+			},
+		}
+	} else {
+		table = &v1.Table{
+			ColumnDefinitions: []v1.TableColumnDefinition{
+				// {Name: "AWS ACCOUNT ID", Type: "string"},
+				{Name: "AWS PROFILE", Type: "string"},
+				{Name: "AWS REGION", Type: "string"},
+				{Name: "CLUSTER NAME", Type: "string"},
+				{Name: "STATUS", Type: "string"},
+				{Name: "VERSION", Type: "string"},
+				{Name: "CREATED", Type: "string"},
+				{Name: "ARN", Type: "string"},
+			},
+		}
 	}
 
 	// Populate rows with data from the variadic ClusterInfo
 	for _, clusterInfo := range clusterInfos {
-		table.Rows = append(table.Rows, v1.TableRow{
-			Cells: []interface{}{
-				// clusterInfo.AWSAccountID,
-				clusterInfo.AWSProfile,
-				clusterInfo.Region,
-				clusterInfo.ClusterName,
-				clusterInfo.Status,
-				clusterInfo.Version,
-				clusterInfo.CreatedAt,
-				clusterInfo.Arn,
-			},
-		})
+		if len(clusterInfos) == 1 && clusterInfo.Namespace != "" {
+			table.Rows = append(table.Rows, v1.TableRow{
+				Cells: []interface{}{
+					// clusterInfo.AWSAccountID,
+					clusterInfo.AWSProfile,
+					clusterInfo.Region,
+					clusterInfo.ClusterName,
+					clusterInfo.Namespace,
+					clusterInfo.Status,
+					clusterInfo.Version,
+					clusterInfo.CreatedAt,
+					clusterInfo.Arn,
+				},
+			})
+		} else {
+			table.Rows = append(table.Rows, v1.TableRow{
+				Cells: []interface{}{
+					// clusterInfo.AWSAccountID,
+					clusterInfo.AWSProfile,
+					clusterInfo.Region,
+					clusterInfo.ClusterName,
+					clusterInfo.Status,
+					clusterInfo.Version,
+					clusterInfo.CreatedAt,
+					clusterInfo.Arn,
+				},
+			})
+		}
 	}
 
 	// Print the table
