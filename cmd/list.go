@@ -28,7 +28,10 @@ You can filter by cluster name, region, version, or AWS profile.`,
   kubectl eks list --region us-east-1
   
   # Filter by version and profile
-  kubectl eks list --version 1.29 --profile profile-1`,
+  kubectl eks list --version 1.29 --profile profile-1
+  
+  # List only cluster ARNs
+  kubectl eks list -1`,
 	Run: func(cmd *cobra.Command, args []string) {
 		refresh, err := cmd.Flags().GetBool("refresh")
 		if err != nil {
@@ -63,6 +66,11 @@ You can filter by cluster name, region, version, or AWS profile.`,
 		version, err := cmd.Flags().GetString("version")
 		if err != nil {
 			version = ""
+		}
+
+		arnOnly, err := cmd.Flags().GetBool("arn-only")
+		if err != nil {
+			arnOnly = false
 		}
 
 		loadCacheFromDisk()
@@ -151,12 +159,18 @@ You can filter by cluster name, region, version, or AWS profile.`,
 			}
 		}
 
-		noHeaders, err := cmd.Flags().GetBool("no-headers")
-		if err != nil {
-			noHeaders = false
-		}
+		if arnOnly {
+			for _, cluster := range clusterList {
+				fmt.Println(cluster.Arn)
+			}
+		} else {
+			noHeaders, err := cmd.Flags().GetBool("no-headers")
+			if err != nil {
+				noHeaders = false
+			}
 
-		printutils.PrintClusters(noHeaders, clusterList...)
+			printutils.PrintClusters(noHeaders, clusterList...)
+		}
 
 		saveCacheToDisk()
 	},
@@ -225,6 +239,7 @@ func init() {
 	listCmd.Flags().StringP("name-not-contains", "x", "", "Cluster name does not contain string")
 	listCmd.Flags().StringP("region", "r", "", "AWS region to use")
 	listCmd.Flags().StringP("version", "v", "", "Filter by EKS version")
+	listCmd.Flags().BoolP("arn-only", "1", false, "Output only cluster ARNs, one per line")
 
 	rootCmd.AddCommand(listCmd)
 }
