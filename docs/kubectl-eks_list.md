@@ -25,11 +25,15 @@ kubectl-eks list [flags]
   
   # Filter by version and profile
   kubectl eks list --version 1.29 --profile profile-1
+  
+  # List only cluster ARNs
+  kubectl eks list -1
 ```
 
 ### Options
 
 ```
+  -1, --arn-only                   Output only cluster ARNs, one per line
   -h, --help                       help for list
   -c, --name-contains string       Cluster name contains string
   -x, --name-not-contains string   Cluster name does not contain string
@@ -46,6 +50,7 @@ kubectl-eks list [flags]
       --as string                      Username to impersonate for the operation. User could be a regular user or a service account in a namespace.
       --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                  UID to impersonate for the operation.
+      --as-user-extra stringArray      User extras to impersonate for the operation, this flag can be repeated to specify multiple values for the same key.
       --cache-dir string               Default cache directory (default "/Users/jprats/.kube/cache")
       --certificate-authority string   Path to a cert file for the certificate authority
       --client-certificate string      Path to a client certificate file for TLS

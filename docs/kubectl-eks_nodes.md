@@ -4,16 +4,41 @@ List EKS nodes
 
 ### Synopsis
 
-List EKS nodes for the current cluster with AWS console-style information
+List EKS nodes for one or more clusters.
+
+When cluster filters are provided, queries multiple clusters.
+Without filters, queries the current cluster context.
 
 ```
 kubectl-eks nodes [flags]
 ```
 
+### Examples
+
+```
+  # List nodes for current cluster
+  kubectl eks nodes
+
+  # List nodes across clusters matching filter
+  kubectl eks nodes --name-contains prod
+
+  # List nodes for specific profile
+  kubectl eks nodes --profile my-aws-profile
+
+  # List nodes across all clusters in a region
+  kubectl eks nodes --region us-west-2
+```
+
 ### Options
 
 ```
-  -h, --help   help for nodes
+  -h, --help                       help for nodes
+  -c, --name-contains string       Cluster name contains string
+  -x, --name-not-contains string   Cluster name does not contain string
+  -p, --profile string             AWS profile to use
+  -q, --profile-contains string    AWS profile contains string
+  -r, --region string              AWS region to use
+  -v, --version string             Filter by EKS version
 ```
 
 ### Options inherited from parent commands
@@ -22,6 +47,7 @@ kubectl-eks nodes [flags]
       --as string                      Username to impersonate for the operation. User could be a regular user or a service account in a namespace.
       --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                  UID to impersonate for the operation.
+      --as-user-extra stringArray      User extras to impersonate for the operation, this flag can be repeated to specify multiple values for the same key.
       --cache-dir string               Default cache directory (default "/Users/jprats/.kube/cache")
       --certificate-authority string   Path to a cert file for the certificate authority
       --client-certificate string      Path to a client certificate file for TLS

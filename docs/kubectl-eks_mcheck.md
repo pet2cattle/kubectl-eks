@@ -59,7 +59,7 @@ kubectl-eks mcheck [flags]
   -r, --region string              AWS region to use
       --replicasets                Check only replicasets
       --statefulsets               Check only statefulsets
-  -S, --summary                    Show summary per cluster
+      --summary                    Show health summary
   -v, --version string             Filter by EKS version
 ```
 
@@ -69,6 +69,7 @@ kubectl-eks mcheck [flags]
       --as string                      Username to impersonate for the operation. User could be a regular user or a service account in a namespace.
       --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                  UID to impersonate for the operation.
+      --as-user-extra stringArray      User extras to impersonate for the operation, this flag can be repeated to specify multiple values for the same key.
       --cache-dir string               Default cache directory (default "/Users/jprats/.kube/cache")
       --certificate-authority string   Path to a cert file for the certificate authority
       --client-certificate string      Path to a client certificate file for TLS

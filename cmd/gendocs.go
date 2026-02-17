@@ -13,9 +13,10 @@ func init() {
 }
 
 var genDocsCmd = &cobra.Command{
-	Use:    "gendocs",
-	Short:  "Generate documentation",
-	Hidden: true,
+	Use:     "gendocs",
+	Aliases: []string{"docs", "mkdocs"},
+	Short:   "Generate documentation",
+	Hidden:  true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Create docs directory if it doesn't exist
 		if err := os.MkdirAll("./docs", 0755); err != nil {
