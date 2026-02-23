@@ -141,3 +141,32 @@ type EventInfo struct {
 	Message     string
 	Count       int32
 }
+
+type IRSAInfo struct {
+	Profile            string
+	Region             string
+	ClusterName        string
+	Namespace          string
+	ServiceAccountName string
+	IAMRoleARN         string
+}
+
+type Kube2IAMInfo struct {
+	Profile     string
+	Region      string
+	ClusterName string
+	Namespace   string
+	PodName     string
+	IAMRole     string
+	NodeName    string
+}
+
+type PodIdentityInfo struct {
+	Profile            string
+	Region             string
+	ClusterName        string
+	Namespace          string
+	ServiceAccountName string
+	IAMRoleARN         string
+	IdentityType       string
+}
