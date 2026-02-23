@@ -15,8 +15,14 @@ import (
 var nodegroupsCmd = &cobra.Command{
 	Use:     "nodegroups",
 	Aliases: []string{"ng"},
-	Short:   "List EKS nodegroups",
-	Long:    `List EKS nodegroups for a given cluster (or the current one if not specified)`,
+	Short:   "List EKS managed node groups",
+	Long: `List EKS managed node groups with configuration and status details.
+
+Displays node group name, status, instance types, scaling configuration
+(min/max/desired size), AMI type, capacity type (On-Demand/Spot), and
+current Kubernetes version.
+
+Use this to audit node group configurations and identify scaling settings.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterArn := ""
 

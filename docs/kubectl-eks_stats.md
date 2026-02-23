@@ -1,10 +1,20 @@
 ## kubectl-eks stats
 
-Get EKS cluster stats
+Show aggregated cluster statistics and resource usage
 
 ### Synopsis
 
-Get EKS cluster stats of the current cluster or all the clusters that matches a filter
+Display aggregated statistics for EKS clusters including resource counts and usage.
+
+Shows summary metrics such as:
+  - Node counts by type and status
+  - Pod counts across namespaces
+  - Resource requests and limits (CPU/memory)
+  - Kubernetes version
+  - Cluster age and uptime
+
+Supports filtering to show stats for specific clusters or aggregate across
+multiple clusters matching your criteria.
 
 ```
 kubectl-eks stats [flags]

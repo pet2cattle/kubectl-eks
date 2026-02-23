@@ -45,8 +45,14 @@ func SwitchToCluster(clusterArn, namespace, profile string) {
 
 var useCmd = &cobra.Command{
 	Use:   "use",
-	Short: "switch to a different EKS cluster",
-	Long:  `Update kubeconfig's context to use a different EKS cluster`,
+	Short: "Switch kubectl context to a different EKS cluster",
+	Long: `Switch kubectl context to a different EKS cluster by updating kubeconfig.
+
+Accepts either a cluster ARN or partial cluster name. Automatically updates
+your kubeconfig and sets the current context to the specified cluster.
+
+Optionally specify a namespace to set as default, or use a different AWS
+profile for authentication.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) != 1 {
 			fmt.Printf("Usage: %s use <cluster-arn>\n", cmd.Root().Name())

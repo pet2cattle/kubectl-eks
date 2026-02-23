@@ -13,8 +13,15 @@ import (
 
 var stacksCmd = &cobra.Command{
 	Use:   "stacks",
-	Short: "Get CF stacks",
-	Long:  `Get list of possible CF stacks (or the current one if not specified)`,
+	Short: "List CloudFormation stacks associated with EKS clusters",
+	Long: `List CloudFormation stacks related to EKS clusters and their resources.
+
+Shows stack name, status, creation time, and parameters. Useful for
+identifying stacks managing EKS node groups, VPC resources, or other
+EKS-related infrastructure.
+
+By default, shows stacks for the current cluster. Use filters to query
+stacks across multiple clusters or search by stack name/parameters.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		searchName, err := cmd.Flags().GetString("name")
 		if err != nil {

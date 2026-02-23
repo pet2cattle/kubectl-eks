@@ -13,8 +13,16 @@ import (
 
 var updatesCmd = &cobra.Command{
 	Use:   "updates",
-	Short: "Check for updates",
-	Long:  `Check for updates for a given EKS cluster (or the current one if not specified)`,
+	Short: "Check for available Kubernetes and add-on updates",
+	Long: `Check for available Kubernetes version updates and EKS add-on updates.
+
+Displays current versions and available updates for:
+  - Kubernetes control plane
+  - EKS managed add-ons (VPC CNI, CoreDNS, kube-proxy, etc.)
+  - Platform version
+
+Helps plan cluster upgrades and maintain compatibility with the latest
+Kubernetes releases and security patches.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterArn := ""
 

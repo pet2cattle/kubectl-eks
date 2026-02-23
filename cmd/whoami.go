@@ -17,11 +17,15 @@ import (
 
 var whoamiCmd = &cobra.Command{
 	Use:   "whoami",
-	Short: "Show current IAM identity and Kubernetes RBAC mapping",
-	Long: `Show current assumed IAM identity and how it maps to Kubernetes RBAC.
+	Short: "Show current AWS IAM identity and Kubernetes user mapping",
+	Long: `Display current AWS IAM identity and how it maps to Kubernetes RBAC.
 
-Combines AWS STS GetCallerIdentity with Kubernetes authentication info
-to provide a complete view of your current identity and permissions.`,
+Shows both AWS identity (from STS GetCallerIdentity) and Kubernetes user
+information (username, UID, groups) to help understand your current
+authentication context and troubleshoot RBAC issues.
+
+Useful for verifying which IAM role/user is accessing the cluster and
+what Kubernetes groups/permissions are assigned.`,
 	Example: `  # Show current identity
   kubectl eks whoami`,
 	Run: func(cmd *cobra.Command, args []string) {

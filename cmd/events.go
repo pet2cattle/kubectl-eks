@@ -13,12 +13,14 @@ import (
 
 var eventsCmd = &cobra.Command{
 	Use:   "events",
-	Short: "Show aggregated events across namespaces",
-	Long: `Show aggregated events across namespaces, sorted by time.
+	Short: "Show Kubernetes events across namespaces",
+	Long: `Display Kubernetes events across all or specific namespaces, sorted by timestamp.
 
-Displays cluster events, with options to filter by type (Warning/Normal)
-and namespace. Events are sorted by timestamp (most recent first).
-Shows all event types by default.`,
+Events provide insights into cluster activities such as pod scheduling,
+image pulls, volume mounts, configuration changes, and errors.
+
+By default shows all event types (Normal and Warning). Use --warnings-only
+to filter for just Warning events. Events are sorted with most recent first.`,
 	Example: `  # Show all events across all namespaces
   kubectl eks events
 

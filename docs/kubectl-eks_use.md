@@ -1,10 +1,16 @@
 ## kubectl-eks use
 
-switch to a different EKS cluster
+Switch kubectl context to a different EKS cluster
 
 ### Synopsis
 
-Update kubeconfig's context to use a different EKS cluster
+Switch kubectl context to a different EKS cluster by updating kubeconfig.
+
+Accepts either a cluster ARN or partial cluster name. Automatically updates
+your kubeconfig and sets the current context to the specified cluster.
+
+Optionally specify a namespace to set as default, or use a different AWS
+profile for authentication.
 
 ```
 kubectl-eks use [flags]

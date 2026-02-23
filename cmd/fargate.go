@@ -14,8 +14,14 @@ import (
 var fargateProfilesCmd = &cobra.Command{
 	Use:     "fargate-profiles",
 	Aliases: []string{"fp", "fargate"},
-	Short:   "List EKS Fargate profiles",
-	Long:    `List EKS Fargate profiles for a given cluster (or the current one if not specified)`,
+	Short:   "List EKS Fargate profiles and their selectors",
+	Long: `List EKS Fargate profiles with namespace selectors and configuration.
+
+Displays Fargate profile name, status, pod execution role ARN, subnets,
+and namespace/label selectors that determine which pods run on Fargate.
+
+Use this to understand Fargate scheduling rules and troubleshoot pod
+placement issues.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterArn := ""
 

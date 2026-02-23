@@ -60,22 +60,22 @@ kubectl-eks [flags]
 
 * [kubectl-eks aws-profile](kubectl-eks_aws-profile.md)	 - Get AWS profile
 * [kubectl-eks completion](kubectl-eks_completion.md)	 - Generate the autocompletion script for the specified shell
-* [kubectl-eks events](kubectl-eks_events.md)	 - Show aggregated events across namespaces
-* [kubectl-eks fargate-profiles](kubectl-eks_fargate-profiles.md)	 - List EKS Fargate profiles
-* [kubectl-eks insights](kubectl-eks_insights.md)	 - Get insights about an EKS cluster
+* [kubectl-eks events](kubectl-eks_events.md)	 - Show Kubernetes events across namespaces
+* [kubectl-eks fargate-profiles](kubectl-eks_fargate-profiles.md)	 - List EKS Fargate profiles and their selectors
+* [kubectl-eks insights](kubectl-eks_insights.md)	 - Show EKS cluster insights and recommendations
 * [kubectl-eks irsa](kubectl-eks_irsa.md)	 - List service accounts with IRSA annotations and their IAM roles
 * [kubectl-eks karpenter](kubectl-eks_karpenter.md)	 - Karpenter resource management commands
 * [kubectl-eks kube2iam](kubectl-eks_kube2iam.md)	 - List pods with kube2iam annotations and their IAM roles
 * [kubectl-eks list](kubectl-eks_list.md)	 - List all EKS clusters in your AWS account
 * [kubectl-eks mcheck](kubectl-eks_mcheck.md)	 - Check health status of resources across multiple clusters
 * [kubectl-eks mget](kubectl-eks_mget.md)	 - Get resources from multiple clusters
-* [kubectl-eks nodegroups](kubectl-eks_nodegroups.md)	 - List EKS nodegroups
-* [kubectl-eks nodes](kubectl-eks_nodes.md)	 - List EKS nodes
-* [kubectl-eks pod-identity](kubectl-eks_pod-identity.md)	 - List EKS Pod Identity associations from the EKS API
-* [kubectl-eks quotas](kubectl-eks_quotas.md)	 - Show resource quotas and current utilization per namespace
-* [kubectl-eks stacks](kubectl-eks_stacks.md)	 - Get CF stacks
-* [kubectl-eks stats](kubectl-eks_stats.md)	 - Get EKS cluster stats
-* [kubectl-eks updates](kubectl-eks_updates.md)	 - Check for updates
-* [kubectl-eks use](kubectl-eks_use.md)	 - switch to a different EKS cluster
-* [kubectl-eks whoami](kubectl-eks_whoami.md)	 - Show current IAM identity and Kubernetes RBAC mapping
+* [kubectl-eks nodegroups](kubectl-eks_nodegroups.md)	 - List EKS managed node groups
+* [kubectl-eks nodes](kubectl-eks_nodes.md)	 - List Kubernetes nodes with EC2 instance details
+* [kubectl-eks pod-identity](kubectl-eks_pod-identity.md)	 - List EKS Pod Identity associations from the AWS EKS API
+* [kubectl-eks quotas](kubectl-eks_quotas.md)	 - Show ResourceQuota usage per namespace
+* [kubectl-eks stacks](kubectl-eks_stacks.md)	 - List CloudFormation stacks associated with EKS clusters
+* [kubectl-eks stats](kubectl-eks_stats.md)	 - Show aggregated cluster statistics and resource usage
+* [kubectl-eks updates](kubectl-eks_updates.md)	 - Check for available Kubernetes and add-on updates
+* [kubectl-eks use](kubectl-eks_use.md)	 - Switch kubectl context to a different EKS cluster
+* [kubectl-eks whoami](kubectl-eks_whoami.md)	 - Show current AWS IAM identity and Kubernetes user mapping
 

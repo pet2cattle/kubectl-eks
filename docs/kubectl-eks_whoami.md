@@ -1,13 +1,17 @@
 ## kubectl-eks whoami
 
-Show current IAM identity and Kubernetes RBAC mapping
+Show current AWS IAM identity and Kubernetes user mapping
 
 ### Synopsis
 
-Show current assumed IAM identity and how it maps to Kubernetes RBAC.
+Display current AWS IAM identity and how it maps to Kubernetes RBAC.
 
-Combines AWS STS GetCallerIdentity with Kubernetes authentication info
-to provide a complete view of your current identity and permissions.
+Shows both AWS identity (from STS GetCallerIdentity) and Kubernetes user
+information (username, UID, groups) to help understand your current
+authentication context and troubleshoot RBAC issues.
+
+Useful for verifying which IAM role/user is accessing the cluster and
+what Kubernetes groups/permissions are assigned.
 
 ```
 kubectl-eks whoami [flags]

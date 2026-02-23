@@ -1,10 +1,14 @@
 ## kubectl-eks nodes
 
-List EKS nodes
+List Kubernetes nodes with EC2 instance details
 
 ### Synopsis
 
-List EKS nodes for one or more clusters.
+List Kubernetes nodes across EKS clusters with EC2 instance metadata.
+
+Shows node status, instance type, capacity (CPU/memory), provider ID,
+and other node attributes. Queries both Kubernetes and AWS APIs for
+complete node information.
 
 When cluster filters are provided, queries multiple clusters.
 Without filters, queries the current cluster context.

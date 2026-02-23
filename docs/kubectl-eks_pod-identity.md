@@ -1,12 +1,12 @@
 ## kubectl-eks pod-identity
 
-List EKS Pod Identity associations from the EKS API
+List EKS Pod Identity associations from the AWS EKS API
 
 ### Synopsis
 
-List EKS Pod Identity associations configured via the EKS API.
+List EKS Pod Identity associations configured via the AWS EKS API.
 
-This command queries the EKS API (not Kubernetes) to show true EKS Pod Identity
+This command queries the AWS EKS API to show true EKS Pod Identity
 associations. These are different from IRSA (IAM Roles for Service Accounts).
 
 EKS Pod Identity is a newer AWS feature that eliminates the need for OIDC providers.

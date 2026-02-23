@@ -1,10 +1,18 @@
 ## kubectl-eks updates
 
-Check for updates
+Check for available Kubernetes and add-on updates
 
 ### Synopsis
 
-Check for updates for a given EKS cluster (or the current one if not specified)
+Check for available Kubernetes version updates and EKS add-on updates.
+
+Displays current versions and available updates for:
+  - Kubernetes control plane
+  - EKS managed add-ons (VPC CNI, CoreDNS, kube-proxy, etc.)
+  - Platform version
+
+Helps plan cluster upgrades and maintain compatibility with the latest
+Kubernetes releases and security patches.
 
 ```
 kubectl-eks updates [flags]

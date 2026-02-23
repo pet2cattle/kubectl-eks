@@ -1,10 +1,17 @@
 ## kubectl-eks stacks
 
-Get CF stacks
+List CloudFormation stacks associated with EKS clusters
 
 ### Synopsis
 
-Get list of possible CF stacks (or the current one if not specified)
+List CloudFormation stacks related to EKS clusters and their resources.
+
+Shows stack name, status, creation time, and parameters. Useful for
+identifying stacks managing EKS node groups, VPC resources, or other
+EKS-related infrastructure.
+
+By default, shows stacks for the current cluster. Use filters to query
+stacks across multiple clusters or search by stack name/parameters.
 
 ```
 kubectl-eks stacks [flags]

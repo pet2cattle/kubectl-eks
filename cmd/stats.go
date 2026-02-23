@@ -12,8 +12,18 @@ import (
 
 var statsCmd = &cobra.Command{
 	Use:   "stats",
-	Short: "Get EKS cluster stats",
-	Long:  `Get EKS cluster stats of the current cluster or all the clusters that matches a filter`,
+	Short: "Show aggregated cluster statistics and resource usage",
+	Long: `Display aggregated statistics for EKS clusters including resource counts and usage.
+
+Shows summary metrics such as:
+  - Node counts by type and status
+  - Pod counts across namespaces
+  - Resource requests and limits (CPU/memory)
+  - Kubernetes version
+  - Cluster age and uptime
+
+Supports filtering to show stats for specific clusters or aggregate across
+multiple clusters matching your criteria.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		profile, err := cmd.Flags().GetString("profile")
 		if err != nil {

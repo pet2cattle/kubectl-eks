@@ -1,10 +1,16 @@
 ## kubectl-eks nodegroups
 
-List EKS nodegroups
+List EKS managed node groups
 
 ### Synopsis
 
-List EKS nodegroups for a given cluster (or the current one if not specified)
+List EKS managed node groups with configuration and status details.
+
+Displays node group name, status, instance types, scaling configuration
+(min/max/desired size), AMI type, capacity type (On-Demand/Spot), and
+current Kubernetes version.
+
+Use this to audit node group configurations and identify scaling settings.
 
 ```
 kubectl-eks nodegroups [flags]

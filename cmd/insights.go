@@ -13,8 +13,18 @@ import (
 
 var insightsCmd = &cobra.Command{
 	Use:   "insights",
-	Short: "Get insights about an EKS cluster",
-	Long:  `Get insights about an EKS cluster (or the current one if not specified)`,
+	Short: "Show EKS cluster insights and recommendations",
+	Long: `Display EKS Insights that provide recommendations and deprecation warnings.
+
+EKS Insights help identify:
+  - Deprecated API usage
+  - Security findings
+  - Best practice violations
+  - Upgrade blockers
+  - Configuration issues
+
+Insights are categorized by severity and include remediation guidance to
+help maintain cluster health and security.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterArn := ""
 

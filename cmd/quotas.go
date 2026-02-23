@@ -12,11 +12,17 @@ import (
 
 var quotasCmd = &cobra.Command{
 	Use:   "quotas",
-	Short: "Show resource quotas and current utilization per namespace",
-	Long: `Show resource quotas and current utilization across namespaces.
+	Short: "Show ResourceQuota usage per namespace",
+	Long: `Display ResourceQuota configurations and current usage across namespaces.
 
-Displays resource quotas (CPU, memory, pods, etc.) along with current
-usage to help identify quota limits and available capacity.`,
+Shows hard limits and current usage for resources such as:
+  - CPU requests/limits
+  - Memory requests/limits
+  - Pod counts
+  - PersistentVolumeClaim counts
+  - ConfigMap/Secret counts
+
+Helps identify quota constraints and capacity planning opportunities.`,
 	Example: `  # Show quotas for current cluster
   kubectl eks quotas
 
