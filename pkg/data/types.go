@@ -105,3 +105,39 @@ type EKSInsightInfo struct {
 	Summary        *CategorySpecificSummary
 	AdditionalInfo *map[string]*string
 }
+
+type WhoAmIInfo struct {
+	AWSProfile  string
+	Region      string
+	ClusterName string
+	AWSArn      string
+	AWSAccount  string
+	AWSUserId   string
+	K8sUsername string
+	K8sUID      string
+	K8sGroups   []string
+}
+
+type ResourceQuotaInfo struct {
+	Profile      string
+	Region       string
+	ClusterName  string
+	Namespace    string
+	QuotaName    string
+	ResourceName string
+	Hard         string
+	Used         string
+}
+
+type EventInfo struct {
+	Profile     string
+	Region      string
+	ClusterName string
+	Namespace   string
+	LastSeen    time.Time
+	Type        string
+	Reason      string
+	Object      string
+	Message     string
+	Count       int32
+}
