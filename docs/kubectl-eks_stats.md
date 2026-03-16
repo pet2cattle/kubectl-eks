@@ -55,6 +55,7 @@ kubectl-eks stats [flags]
       --tls-server-name string         Server name to use for server certificate validation. If it is not provided, the hostname used to contact the server is used
       --token string                   Bearer token for authentication to the API server
       --user string                    The name of the kubeconfig user to use
+      --verbose                        Show verbose discovery warnings and diagnostics
 ```
 
 ### SEE ALSO

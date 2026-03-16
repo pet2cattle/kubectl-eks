@@ -51,6 +51,9 @@ Supports output formats:
   
   # Filter clusters and resources
   kubectl eks mget pods --name-contains prod --resource-starts-with nginx
+
+  # Filter resources by name substring
+  kubectl eks mget pods --name-contains prod --resource-contains api
   
   # Works with any resource including CRDs
   kubectl eks mget ec2nodeclass -A`,
@@ -73,6 +76,7 @@ Supports output formats:
 		allNamespaces, _ := cmd.Flags().GetBool("all-namespaces")
 		output, _ := cmd.Flags().GetString("output")
 		startsWith, _ := cmd.Flags().GetString("resource-starts-with")
+		contains, _ := cmd.Flags().GetString("resource-contains")
 		noHeaders, _ := cmd.Flags().GetBool("no-headers")
 
 		// Load cluster list
@@ -96,20 +100,20 @@ Supports output formats:
 		// Check if JSONPath output
 		if strings.HasPrefix(output, "jsonpath=") {
 			jsonpathExpr := strings.TrimPrefix(output, "jsonpath=")
-			runJsonPathQuery(clusterList, resourceType, resourceName, jsonpathExpr, namespace, allNamespaces, startsWith, noHeaders)
+			runJsonPathQuery(clusterList, resourceType, resourceName, jsonpathExpr, namespace, allNamespaces, startsWith, contains, noHeaders)
 		} else if (resourceType == "pods" || resourceType == "pod" || resourceType == "po") && output == "" {
 			// Use existing pod listing functionality only for default output
-			runPodListing(clusterList, namespace, allNamespaces, noHeaders)
+			runPodListing(clusterList, namespace, allNamespaces, startsWith, contains, noHeaders)
 		} else {
 			// Generic resource listing using dynamic client
-			runGenericListing(clusterList, resourceType, resourceName, namespace, allNamespaces, startsWith, output, noHeaders)
+			runGenericListing(clusterList, resourceType, resourceName, namespace, allNamespaces, startsWith, contains, output, noHeaders)
 		}
 
 		saveCacheToDisk()
 	},
 }
 
-func runPodListing(clusterList []data.ClusterInfo, namespace string, allNamespaces bool, noHeaders bool) {
+func runPodListing(clusterList []data.ClusterInfo, namespace string, allNamespaces bool, startsWith, contains string, noHeaders bool) {
 	k8SClusterPodList := []k8s.K8SClusterPodList{}
 
 	for _, clusterInfo := range clusterList {
@@ -124,13 +128,28 @@ func runPodListing(clusterList []data.ClusterInfo, namespace string, allNamespac
 			log.Printf("Warning: Failed to get pods from cluster %s: %v", clusterInfo.ClusterName, err)
 			continue
 		}
+
+		if startsWith != "" || contains != "" {
+			filteredPods := make([]k8s.K8SPodInfo, 0, len(k8sPodList.Pods))
+			for _, pod := range k8sPodList.Pods {
+				if startsWith != "" && !strings.HasPrefix(pod.Name, startsWith) {
+					continue
+				}
+				if contains != "" && !strings.Contains(pod.Name, contains) {
+					continue
+				}
+				filteredPods = append(filteredPods, pod)
+			}
+			k8sPodList.Pods = filteredPods
+		}
+
 		k8SClusterPodList = append(k8SClusterPodList, *k8sPodList)
 	}
 
 	printutils.PrintMultiGetPods(noHeaders, k8SClusterPodList...)
 }
 
-func runGenericListing(clusterList []data.ClusterInfo, resourceType, resourceName, namespace string, allNamespaces bool, startsWith, output string, noHeaders bool) {
+func runGenericListing(clusterList []data.ClusterInfo, resourceType, resourceName, namespace string, allNamespaces bool, startsWith, contains, output string, noHeaders bool) {
 	results := []data.ResourceResult{}
 
 	for _, clusterInfo := range clusterList {
@@ -254,6 +273,9 @@ func runGenericListing(clusterList []data.ClusterInfo, resourceType, resourceNam
 					if startsWith != "" && !strings.HasPrefix(name, startsWith) {
 						continue
 					}
+					if contains != "" && !strings.Contains(name, contains) {
+						continue
+					}
 					results = append(results, data.ResourceResult{
 						Profile:     clusterInfo.AWSProfile,
 						Region:      clusterInfo.Region,
@@ -360,7 +382,7 @@ func isClusterScoped(resource string) bool {
 	return clusterScoped[resource]
 }
 
-func runJsonPathQuery(clusterList []data.ClusterInfo, resourceType, resourceName, jsonpathExpr, namespace string, allNamespaces bool, startsWith string, noHeaders bool) {
+func runJsonPathQuery(clusterList []data.ClusterInfo, resourceType, resourceName, jsonpathExpr, namespace string, allNamespaces bool, startsWith, contains string, noHeaders bool) {
 	// Normalize JSONPath expression
 	jsonpathExpr = strings.TrimSpace(jsonpathExpr)
 	if strings.HasPrefix(jsonpathExpr, "{") && strings.HasSuffix(jsonpathExpr, "}") {
@@ -486,11 +508,16 @@ func runJsonPathQuery(clusterList []data.ClusterInfo, resourceType, resourceName
 
 				for _, item := range list.Items {
 					name := item.GetName()
-					if startsWith == "" || strings.HasPrefix(name, startsWith) {
-						itemCopy := item
-						objects = append(objects, &itemCopy)
-						resourceNames = append(resourceNames, name)
+					if startsWith != "" && !strings.HasPrefix(name, startsWith) {
+						continue
 					}
+					if contains != "" && !strings.Contains(name, contains) {
+						continue
+					}
+
+					itemCopy := item
+					objects = append(objects, &itemCopy)
+					resourceNames = append(resourceNames, name)
 				}
 			}
 
@@ -565,6 +592,7 @@ func init() {
 	mGetCmd.Flags().BoolP("all-namespaces", "A", false, "Query all Kubernetes namespaces")
 	mGetCmd.Flags().StringP("output", "o", "", "Output format: wide|json|yaml|jsonpath=...")
 	mGetCmd.Flags().StringP("resource-starts-with", "w", "", "Filter resources that start with this string")
+	mGetCmd.Flags().String("resource-contains", "", "Filter resources that contain this string")
 	mGetCmd.Flags().Bool("no-headers", false, "Don't print headers")
 
 	rootCmd.AddCommand(mGetCmd)

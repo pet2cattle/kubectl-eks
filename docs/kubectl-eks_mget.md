@@ -37,6 +37,9 @@ kubectl-eks mget [resource-type] [resource-name] [flags]
   
   # Filter clusters and resources
   kubectl eks mget pods --name-contains prod --resource-starts-with nginx
+
+  # Filter resources by name substring
+  kubectl eks mget pods --name-contains prod --resource-contains api
   
   # Works with any resource including CRDs
   kubectl eks mget ec2nodeclass -A
@@ -55,6 +58,7 @@ kubectl-eks mget [resource-type] [resource-name] [flags]
   -p, --profile string                AWS profile to use
   -q, --profile-contains string       AWS profile contains string
   -r, --region string                 AWS region to use
+      --resource-contains string      Filter resources that contain this string
   -w, --resource-starts-with string   Filter resources that start with this string
   -v, --version string                Filter by EKS version
 ```
@@ -80,6 +84,7 @@ kubectl-eks mget [resource-type] [resource-name] [flags]
       --tls-server-name string         Server name to use for server certificate validation. If it is not provided, the hostname used to contact the server is used
       --token string                   Bearer token for authentication to the API server
       --user string                    The name of the kubeconfig user to use
+      --verbose                        Show verbose discovery warnings and diagnostics
 ```
 
 ### SEE ALSO

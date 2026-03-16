@@ -66,6 +66,9 @@ func LoadClusterList(args []string, profile, profile_contains, name_contains, na
 			}
 		}
 
+		// Show per-profile load failures when profile filters are explicit or verbose mode is enabled.
+		showLoadFailure := verbose || profile != "" || profile_contains != ""
+
 		awsProfiles := awsconfig.GetAWSProfilesWithEKSHints()
 		for _, profileDetails := range awsProfiles {
 			if profile != "" && profile != profileDetails.Name {
@@ -91,7 +94,9 @@ func LoadClusterList(args []string, profile, profile_contains, name_contains, na
 
 				currentClusterList, exists := CachedData.ClusterList[profileDetails.Name][hintRegion]
 				if !exists {
-					fmt.Fprintf(os.Stderr, "Unable to load clusters using profile: %s region: %s (LoadClusterList)\n", profileDetails.Name, hintRegion)
+					if showLoadFailure {
+						fmt.Fprintf(os.Stderr, "Unable to load clusters using profile: %s region: %s (LoadClusterList)\n", profileDetails.Name, hintRegion)
+					}
 				} else {
 					if version == "" && name_contains == "" && name_not_contains == "" {
 						clusterList = append(clusterList, currentClusterList...)

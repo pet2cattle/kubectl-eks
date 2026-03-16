@@ -18,6 +18,7 @@ import (
 )
 
 var KubernetesConfigFlags *genericclioptions.ConfigFlags
+var verbose bool
 
 var HomeDir string
 var CachedData *data.KubeCtlEksCache = nil
@@ -308,6 +309,7 @@ func init() {
 	rootCmd.Flags().StringP("region", "r", "", "Switch to the same cluster in a different region")
 	rootCmd.Flags().BoolP("refresh", "u", false, "Do not use cached data, refresh from AWS")
 	rootCmd.PersistentFlags().Bool("no-headers", false, "When using the default or custom-column output format, don't print headers (default print headers)")
+	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "Show verbose discovery warnings and diagnostics")
 
 	KubernetesConfigFlags = genericclioptions.NewConfigFlags(true)
 	KubernetesConfigFlags.AddFlags(rootCmd.PersistentFlags())
