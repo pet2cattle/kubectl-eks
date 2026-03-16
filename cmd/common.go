@@ -66,8 +66,8 @@ func LoadClusterList(args []string, profile, profile_contains, name_contains, na
 			}
 		}
 
-		// Show per-profile load failures when profile filters are explicit or verbose mode is enabled.
-		showLoadFailure := verbose || profile != "" || profile_contains != ""
+		// Keep default output quiet; only show per-profile load failures in verbose mode.
+		showLoadFailure := verbose
 
 		awsProfiles := awsconfig.GetAWSProfilesWithEKSHints()
 		for _, profileDetails := range awsProfiles {
