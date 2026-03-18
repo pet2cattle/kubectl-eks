@@ -66,6 +66,7 @@ Supports output formats:
 		}
 
 		// Get flags
+		refresh, _ := cmd.Flags().GetBool("refresh")
 		profile, _ := cmd.Flags().GetString("profile")
 		profileContains, _ := cmd.Flags().GetString("profile-contains")
 		nameContains, _ := cmd.Flags().GetString("name-contains")
@@ -80,7 +81,7 @@ Supports output formats:
 		noHeaders, _ := cmd.Flags().GetBool("no-headers")
 
 		// Load cluster list
-		clusterList, err := LoadClusterList([]string{}, profile, profileContains, nameContains, nameNotContains, region, version)
+		clusterList, err := LoadClusterList([]string{}, profile, profileContains, nameContains, nameNotContains, region, version, refresh)
 		if err != nil {
 			log.Fatalf("Error loading cluster list: %v", err)
 		}
@@ -582,6 +583,7 @@ func formatValue(val interface{}) string {
 }
 
 func init() {
+	mGetCmd.Flags().BoolP("refresh", "u", false, "Do not use cached data, refresh from AWS")
 	mGetCmd.Flags().StringP("profile", "p", "", "AWS profile to use")
 	mGetCmd.Flags().StringP("profile-contains", "q", "", "AWS profile contains string")
 	mGetCmd.Flags().StringP("name-contains", "c", "", "Cluster name contains string")

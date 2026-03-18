@@ -24,6 +24,7 @@ inventory and tracking purposes.`,
   # Show AMI usage across clusters matching filter
   kubectl eks karpenter ami --name-contains prod`,
 	Run: func(cmd *cobra.Command, args []string) {
+		refresh, _ := cmd.Flags().GetBool("refresh")
 		profile, _ := cmd.Flags().GetString("profile")
 		profileContains, _ := cmd.Flags().GetString("profile-contains")
 		nameContains, _ := cmd.Flags().GetString("name-contains")
@@ -46,7 +47,7 @@ inventory and tracking purposes.`,
 					ClusterList:  make(map[string]map[string][]data.ClusterInfo),
 				}
 			}
-			clusterList, err = LoadClusterList([]string{}, profile, profileContains, nameContains, nameNotContains, region, version)
+			clusterList, err = LoadClusterList([]string{}, profile, profileContains, nameContains, nameNotContains, region, version, refresh)
 			if err != nil {
 				log.Fatalf("Error loading cluster list: %v", err)
 			}
@@ -95,6 +96,7 @@ inventory and tracking purposes.`,
 }
 
 func init() {
+	karpenterAMICmd.Flags().BoolP("refresh", "u", false, "Do not use cached data, refresh from AWS")
 	karpenterAMICmd.Flags().StringP("profile", "p", "", "AWS profile to use")
 	karpenterAMICmd.Flags().StringP("profile-contains", "q", "", "AWS profile contains string")
 	karpenterAMICmd.Flags().StringP("name-contains", "c", "", "Cluster name contains string")

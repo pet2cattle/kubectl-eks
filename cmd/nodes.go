@@ -37,6 +37,7 @@ Without filters, queries the current cluster context.`,
   kubectl eks nodes --region us-west-2`,
 	Run: func(cmd *cobra.Command, args []string) {
 		noHeaders, _ := cmd.Flags().GetBool("no-headers")
+		refresh, _ := cmd.Flags().GetBool("refresh")
 
 		// Get filter flags
 		profile, _ := cmd.Flags().GetString("profile")
@@ -66,7 +67,7 @@ Without filters, queries the current cluster context.`,
 			}
 
 			var err error
-			clusterList, err = LoadClusterList([]string{}, profile, profileContains, nameContains, nameNotContains, region, version)
+			clusterList, err = LoadClusterList([]string{}, profile, profileContains, nameContains, nameNotContains, region, version, refresh)
 			if err != nil {
 				log.Fatalf("Error loading cluster list: %v", err)
 			}
@@ -148,6 +149,7 @@ func runMultiClusterNodes(clusterList []data.ClusterInfo, noHeaders bool, skipCo
 }
 
 func init() {
+	nodesCmd.Flags().BoolP("refresh", "u", false, "Do not use cached data, refresh from AWS")
 	nodesCmd.Flags().StringP("profile", "p", "", "AWS profile to use")
 	nodesCmd.Flags().StringP("profile-contains", "q", "", "AWS profile contains string")
 	nodesCmd.Flags().StringP("name-contains", "c", "", "Cluster name contains string")

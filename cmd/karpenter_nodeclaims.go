@@ -28,6 +28,7 @@ and associated NodePool for each NodeClaim.`,
   # List NodeClaims with wide output
   kubectl eks karpenter nodeclaims -o wide`,
 	Run: func(cmd *cobra.Command, args []string) {
+		refresh, _ := cmd.Flags().GetBool("refresh")
 		profile, _ := cmd.Flags().GetString("profile")
 		profileContains, _ := cmd.Flags().GetString("profile-contains")
 		nameContains, _ := cmd.Flags().GetString("name-contains")
@@ -51,7 +52,7 @@ and associated NodePool for each NodeClaim.`,
 					ClusterList:  make(map[string]map[string][]data.ClusterInfo),
 				}
 			}
-			clusterList, err = LoadClusterList([]string{}, profile, profileContains, nameContains, nameNotContains, region, version)
+			clusterList, err = LoadClusterList([]string{}, profile, profileContains, nameContains, nameNotContains, region, version, refresh)
 			if err != nil {
 				log.Fatalf("Error loading cluster list: %v", err)
 			}
@@ -100,6 +101,7 @@ and associated NodePool for each NodeClaim.`,
 }
 
 func init() {
+	karpenterNodeClaimsCmd.Flags().BoolP("refresh", "u", false, "Do not use cached data, refresh from AWS")
 	karpenterNodeClaimsCmd.Flags().StringP("profile", "p", "", "AWS profile to use")
 	karpenterNodeClaimsCmd.Flags().StringP("profile-contains", "q", "", "AWS profile contains string")
 	karpenterNodeClaimsCmd.Flags().StringP("name-contains", "c", "", "Cluster name contains string")

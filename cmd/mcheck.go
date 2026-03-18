@@ -49,6 +49,7 @@ Use -n to check a specific namespace, use --all to show healthy resources too.`,
   # Summary only (no individual resources)
   kubectl eks mcheck --summary`,
 	Run: func(cmd *cobra.Command, args []string) {
+		refresh, _ := cmd.Flags().GetBool("refresh")
 		profile, _ := cmd.Flags().GetString("profile")
 		profileContains, _ := cmd.Flags().GetString("profile-contains")
 		nameContains, _ := cmd.Flags().GetString("name-contains")
@@ -72,7 +73,7 @@ Use -n to check a specific namespace, use --all to show healthy resources too.`,
 			checkPods, checkDeploys, checkSts, checkDs, checkRs = true, true, true, true, true
 		}
 
-		clusterList, err := LoadClusterList([]string{}, profile, profileContains, nameContains, nameNotContains, region, version)
+		clusterList, err := LoadClusterList([]string{}, profile, profileContains, nameContains, nameNotContains, region, version, refresh)
 		if err != nil {
 			log.Fatalf("Error loading cluster list: %v", err)
 		}
@@ -503,6 +504,7 @@ func summarizeResults(cluster data.ClusterInfo, results []data.HealthCheckResult
 }
 
 func init() {
+	mCheckCmd.Flags().BoolP("refresh", "u", false, "Do not use cached data, refresh from AWS")
 	mCheckCmd.Flags().StringP("profile", "p", "", "AWS profile to use")
 	mCheckCmd.Flags().StringP("profile-contains", "q", "", "AWS profile contains string")
 	mCheckCmd.Flags().StringP("name-contains", "c", "", "Cluster name contains string")

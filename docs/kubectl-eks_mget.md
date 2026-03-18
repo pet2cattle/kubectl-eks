@@ -57,6 +57,7 @@ kubectl-eks mget [resource-type] [resource-name] [flags]
   -o, --output string                 Output format: wide|json|yaml|jsonpath=...
   -p, --profile string                AWS profile to use
   -q, --profile-contains string       AWS profile contains string
+  -u, --refresh                       Do not use cached data, refresh from AWS
   -r, --region string                 AWS region to use
       --resource-contains string      Filter resources that contain this string
   -w, --resource-starts-with string   Filter resources that start with this string

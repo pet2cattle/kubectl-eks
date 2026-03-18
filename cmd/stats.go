@@ -25,6 +25,8 @@ Shows summary metrics such as:
 Supports filtering to show stats for specific clusters or aggregate across
 multiple clusters matching your criteria.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		refresh, _ := cmd.Flags().GetBool("refresh")
+
 		profile, err := cmd.Flags().GetString("profile")
 		if err != nil {
 			profile = ""
@@ -55,7 +57,7 @@ multiple clusters matching your criteria.`,
 			version = ""
 		}
 
-		clusterList, err := LoadClusterList(args, profile, profile_contains, name_contains, name_not_contains, region, version)
+		clusterList, err := LoadClusterList(args, profile, profile_contains, name_contains, name_not_contains, region, version, refresh)
 		if err != nil {
 			log.Fatalf("Error loading cluster list: %v", err)
 		}
@@ -106,6 +108,7 @@ multiple clusters matching your criteria.`,
 }
 
 func init() {
+	statsCmd.Flags().BoolP("refresh", "u", false, "Do not use cached data, refresh from AWS")
 	statsCmd.Flags().StringP("profile", "p", "", "AWS profile to use")
 	statsCmd.Flags().StringP("profile-contains", "q", "", "AWS profile contains string")
 	statsCmd.Flags().StringP("name-contains", "c", "", "Cluster name contains string")

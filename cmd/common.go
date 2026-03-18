@@ -10,8 +10,10 @@ import (
 	"github.com/pet2cattle/kubectl-eks/pkg/data"
 )
 
-func LoadClusterList(args []string, profile, profile_contains, name_contains, name_not_contains, region, version string) ([]data.ClusterInfo, error) {
+func LoadClusterList(args []string, profile, profile_contains, name_contains, name_not_contains, region, version string, refresh ...bool) ([]data.ClusterInfo, error) {
 	clusterList := []data.ClusterInfo{}
+
+	doRefresh := len(refresh) > 0 && refresh[0]
 
 	// if filters are empty, use current cluster
 	if profile == "" && profile_contains == "" && name_contains == "" && name_not_contains == "" && region == "" && version == "" {
@@ -64,6 +66,10 @@ func LoadClusterList(args []string, profile, profile_contains, name_contains, na
 				ClusterByARN: make(map[string]data.ClusterInfo),
 				ClusterList:  make(map[string]map[string][]data.ClusterInfo),
 			}
+		}
+
+		if doRefresh {
+			CachedData.ClusterList = make(map[string]map[string][]data.ClusterInfo)
 		}
 
 		// Keep default output quiet; only show per-profile load failures in verbose mode.

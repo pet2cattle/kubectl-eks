@@ -41,6 +41,7 @@ kubectl-eks nodes [flags]
   -x, --name-not-contains string   Cluster name does not contain string
   -p, --profile string             AWS profile to use
   -q, --profile-contains string    AWS profile contains string
+  -u, --refresh                    Do not use cached data, refresh from AWS
   -r, --region string              AWS region to use
   -v, --version string             Filter by EKS version
 ```

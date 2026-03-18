@@ -56,6 +56,7 @@ kubectl-eks mcheck [flags]
       --pods                       Check only pods
   -p, --profile string             AWS profile to use
   -q, --profile-contains string    AWS profile contains string
+  -u, --refresh                    Do not use cached data, refresh from AWS
   -r, --region string              AWS region to use
       --replicasets                Check only replicasets
       --statefulsets               Check only statefulsets
