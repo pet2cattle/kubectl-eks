@@ -6,10 +6,68 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/pet2cattle/kubectl-eks/pkg/data"
 	"github.com/pet2cattle/kubectl-eks/pkg/eks"
 	"github.com/pet2cattle/kubectl-eks/pkg/k8s"
+	"github.com/pet2cattle/kubectl-eks/pkg/printutils"
 	"github.com/spf13/cobra"
 )
+
+func resolveClusterForUse(target, profile, profileContains, nameContains, nameNotContains, region, version string, refresh bool) (*data.ClusterInfo, error) {
+	arnRegex := `^arn:aws:eks:([a-z0-9-]+):(\d{12}):cluster/([a-zA-Z0-9-]+)$`
+	re := regexp.MustCompile(arnRegex)
+
+	target = strings.TrimSpace(target)
+
+	if re.MatchString(target) {
+		clusterInfo := loadClusterByArn(target)
+		if clusterInfo == nil {
+			return nil, fmt.Errorf("cluster not found")
+		}
+
+		return clusterInfo, nil
+	}
+
+	if strings.HasPrefix(target, "arn:aws:eks:") {
+		return nil, fmt.Errorf("invalid cluster ARN: %q", target)
+	}
+
+	clusterList, err := LoadClusterList([]string{}, profile, profileContains, nameContains, nameNotContains, region, version, refresh)
+	if err != nil {
+		return nil, err
+	}
+
+	if target == "" {
+		if len(clusterList) == 0 {
+			return nil, fmt.Errorf("no clusters matched the provided filters")
+		}
+
+		if len(clusterList) > 1 {
+			printutils.PrintClusters(false, clusterList...)
+			return nil, fmt.Errorf("multiple clusters matched the provided filters; refine the filters")
+		}
+
+		return &clusterList[0], nil
+	}
+
+	matches := make([]data.ClusterInfo, 0, len(clusterList))
+	for _, cluster := range clusterList {
+		if strings.Contains(cluster.ClusterName, target) {
+			matches = append(matches, cluster)
+		}
+	}
+
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("no clusters matched %q", target)
+	}
+
+	if len(matches) > 1 {
+		printutils.PrintClusters(false, matches...)
+		return nil, fmt.Errorf("multiple clusters matched %q; refine the filters", target)
+	}
+
+	return &matches[0], nil
+}
 
 func SwitchToCluster(clusterArn, namespace, profile string) {
 	clusterInfo := loadClusterByArn(clusterArn)
@@ -44,21 +102,22 @@ func SwitchToCluster(clusterArn, namespace, profile string) {
 }
 
 var useCmd = &cobra.Command{
-	Use:   "use",
+	Use:   "use [cluster-name-or-arn]",
 	Short: "Switch kubectl context to a different EKS cluster",
 	Long: `Switch kubectl context to a different EKS cluster by updating kubeconfig.
 
-Accepts either a cluster ARN or partial cluster name. Automatically updates
-your kubeconfig and sets the current context to the specified cluster.
+Accepts either a cluster ARN or partial cluster name. When using a partial
+name, the command applies the same cluster filters as 'list' and switches only
+when exactly one cluster matches.
 
 Optionally specify a namespace to set as default, or use a different AWS
 profile for authentication.`,
+	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) != 1 {
-			fmt.Printf("Usage: %s use <cluster-arn>\n", cmd.Root().Name())
-			return
+		target := ""
+		if len(args) == 1 {
+			target = strings.TrimSpace(args[0])
 		}
-		clusterArn := strings.TrimSpace(args[0])
 
 		namespace, err := cmd.Flags().GetString("namespace")
 		if err != nil {
@@ -70,23 +129,55 @@ profile for authentication.`,
 			profile = ""
 		}
 
-		// check if it is an ARN
-		arnRegex := `^arn:aws:eks:([a-z0-9-]+):(\d{12}):cluster/([a-zA-Z0-9-]+)$`
-		re := regexp.MustCompile(arnRegex)
+		profileContains, err := cmd.Flags().GetString("profile-contains")
+		if err != nil {
+			profileContains = ""
+		}
 
-		matches := re.FindStringSubmatch(clusterArn)
-		if matches == nil {
-			fmt.Printf("Invalid cluster ARN: %q\n", clusterArn)
+		nameContains, err := cmd.Flags().GetString("name-contains")
+		if err != nil {
+			nameContains = ""
+		}
+
+		nameNotContains, err := cmd.Flags().GetString("name-not-contains")
+		if err != nil {
+			nameNotContains = ""
+		}
+
+		region, err := cmd.Flags().GetString("region")
+		if err != nil {
+			region = ""
+		}
+
+		version, err := cmd.Flags().GetString("version")
+		if err != nil {
+			version = ""
+		}
+
+		refresh, err := cmd.Flags().GetBool("refresh")
+		if err != nil {
+			refresh = false
+		}
+
+		clusterInfo, err := resolveClusterForUse(target, profile, profileContains, nameContains, nameNotContains, region, version, refresh)
+		if err != nil {
+			fmt.Println(err.Error())
 			os.Exit(1)
 		}
 
-		SwitchToCluster(clusterArn, namespace, profile)
+		SwitchToCluster(clusterInfo.Arn, namespace, profile)
 	},
 }
 
 func init() {
+	useCmd.Flags().BoolP("refresh", "u", false, "Refresh data from AWS")
 	useCmd.Flags().StringP("namespace", "n", "", "Set specific namespace for the context")
 	useCmd.Flags().StringP("profile", "p", "", "Set specific AWS profile for the context")
+	useCmd.Flags().StringP("profile-contains", "q", "", "AWS profile contains string")
+	useCmd.Flags().StringP("name-contains", "c", "", "Cluster name contains string")
+	useCmd.Flags().StringP("name-not-contains", "x", "", "Cluster name does not contain string")
+	useCmd.Flags().StringP("region", "r", "", "AWS region to use")
+	useCmd.Flags().StringP("version", "v", "", "Filter by EKS version")
 
 	rootCmd.AddCommand(useCmd)
 }

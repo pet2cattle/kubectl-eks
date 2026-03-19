@@ -6,22 +6,29 @@ Switch kubectl context to a different EKS cluster
 
 Switch kubectl context to a different EKS cluster by updating kubeconfig.
 
-Accepts either a cluster ARN or partial cluster name. Automatically updates
-your kubeconfig and sets the current context to the specified cluster.
+Accepts either a cluster ARN or partial cluster name. When using a partial
+name, the command applies the same cluster filters as 'list' and switches only
+when exactly one cluster matches.
 
 Optionally specify a namespace to set as default, or use a different AWS
 profile for authentication.
 
 ```
-kubectl-eks use [flags]
+kubectl-eks use [cluster-name-or-arn] [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help               help for use
-  -n, --namespace string   Set specific namespace for the context
-  -p, --profile string     Set specific AWS profile for the context
+  -h, --help                       help for use
+  -c, --name-contains string       Cluster name contains string
+  -x, --name-not-contains string   Cluster name does not contain string
+  -n, --namespace string           Set specific namespace for the context
+  -p, --profile string             Set specific AWS profile for the context
+  -q, --profile-contains string    AWS profile contains string
+  -u, --refresh                    Refresh data from AWS
+  -r, --region string              AWS region to use
+  -v, --version string             Filter by EKS version
 ```
 
 ### Options inherited from parent commands
