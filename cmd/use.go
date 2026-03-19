@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/jordiprats/kubectl-eks/pkg/data"
 	"github.com/jordiprats/kubectl-eks/pkg/eks"
@@ -13,7 +15,86 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func resolveClusterForUse(target, profile, profileContains, nameContains, nameNotContains, region, version string, refresh bool) (*data.ClusterInfo, error) {
+func selectClusterByAge(clusterList []data.ClusterInfo, useOldest bool) (*data.ClusterInfo, error) {
+	if len(clusterList) == 0 {
+		return nil, fmt.Errorf("no clusters available for age-based selection")
+	}
+
+	selected := clusterList[0]
+	selectedTime, err := time.Parse("2006-01-02 15:04:05", selected.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse cluster creation date for %q", selected.ClusterName)
+	}
+
+	for _, cluster := range clusterList[1:] {
+		clusterTime, err := time.Parse("2006-01-02 15:04:05", cluster.CreatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse cluster creation date for %q", cluster.ClusterName)
+		}
+
+		if useOldest {
+			if clusterTime.Before(selectedTime) {
+				selected = cluster
+				selectedTime = clusterTime
+			}
+		} else {
+			if clusterTime.After(selectedTime) {
+				selected = cluster
+				selectedTime = clusterTime
+			}
+		}
+	}
+
+	return &selected, nil
+}
+
+func printAmbiguousSelectionHelp(target string, matches []data.ClusterInfo) {
+	fmt.Printf("multiple clusters matched (%d). no switch performed.\n\n", len(matches))
+
+	fmt.Println("choose exactly one cluster by using one of:")
+	fmt.Println("  - --oldest")
+	fmt.Println("  - --newest")
+
+	if target != "" {
+		fmt.Printf("  - an exact cluster name or ARN instead of %q\n", target)
+	}
+
+	fmt.Println("")
+	fmt.Println("matching clusters:")
+	fmt.Println("")
+	printIndentedClusters("  ", matches)
+}
+
+func printIndentedClusters(indent string, matches []data.ClusterInfo) {
+	originalStdout := os.Stdout
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		printutils.PrintClusters(false, matches...)
+		return
+	}
+
+	os.Stdout = writer
+	printutils.PrintClusters(false, matches...)
+	writer.Close()
+	os.Stdout = originalStdout
+
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		fmt.Print(string(content))
+		return
+	}
+
+	lines := strings.Split(strings.TrimRight(string(content), "\n"), "\n")
+	for _, line := range lines {
+		fmt.Printf("%s%s\n", indent, line)
+	}
+}
+
+func resolveClusterForUse(target, profile, profileContains, nameContains, nameNotContains, region, version string, refresh, oldest, newest bool) (*data.ClusterInfo, []data.ClusterInfo, error) {
+	if oldest && newest {
+		return nil, nil, fmt.Errorf("--oldest and --newest are mutually exclusive")
+	}
+
 	arnRegex := `^arn:aws:eks:([a-z0-9-]+):(\d{12}):cluster/([a-zA-Z0-9-]+)$`
 	re := regexp.MustCompile(arnRegex)
 
@@ -22,32 +103,41 @@ func resolveClusterForUse(target, profile, profileContains, nameContains, nameNo
 	if re.MatchString(target) {
 		clusterInfo := loadClusterByArn(target)
 		if clusterInfo == nil {
-			return nil, fmt.Errorf("cluster not found")
+			return nil, nil, fmt.Errorf("cluster not found")
 		}
 
-		return clusterInfo, nil
+		return clusterInfo, nil, nil
 	}
 
 	if strings.HasPrefix(target, "arn:aws:eks:") {
-		return nil, fmt.Errorf("invalid cluster ARN: %q", target)
+		return nil, nil, fmt.Errorf("invalid cluster ARN: %q", target)
 	}
 
 	clusterList, err := LoadClusterList([]string{}, profile, profileContains, nameContains, nameNotContains, region, version, refresh)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if target == "" {
 		if len(clusterList) == 0 {
-			return nil, fmt.Errorf("no clusters matched the provided filters")
+			return nil, nil, fmt.Errorf("no clusters matched the provided filters")
 		}
 
 		if len(clusterList) > 1 {
-			printutils.PrintClusters(false, clusterList...)
-			return nil, fmt.Errorf("multiple clusters matched the provided filters; refine the filters")
+			if oldest {
+				selected, selErr := selectClusterByAge(clusterList, true)
+				return selected, nil, selErr
+			}
+
+			if newest {
+				selected, selErr := selectClusterByAge(clusterList, false)
+				return selected, nil, selErr
+			}
+
+			return nil, clusterList, fmt.Errorf("multiple clusters matched the provided filters; add --oldest or --newest, or refine filters")
 		}
 
-		return &clusterList[0], nil
+		return &clusterList[0], nil, nil
 	}
 
 	matches := make([]data.ClusterInfo, 0, len(clusterList))
@@ -58,15 +148,24 @@ func resolveClusterForUse(target, profile, profileContains, nameContains, nameNo
 	}
 
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("no clusters matched %q", target)
+		return nil, nil, fmt.Errorf("no clusters matched %q", target)
 	}
 
 	if len(matches) > 1 {
-		printutils.PrintClusters(false, matches...)
-		return nil, fmt.Errorf("multiple clusters matched %q; refine the filters", target)
+		if oldest {
+			selected, selErr := selectClusterByAge(matches, true)
+			return selected, nil, selErr
+		}
+
+		if newest {
+			selected, selErr := selectClusterByAge(matches, false)
+			return selected, nil, selErr
+		}
+
+		return nil, matches, fmt.Errorf("multiple clusters matched %q; add --oldest or --newest, or refine the filters", target)
 	}
 
-	return &matches[0], nil
+	return &matches[0], nil, nil
 }
 
 func SwitchToCluster(clusterArn, namespace, profile string) {
@@ -108,7 +207,9 @@ var useCmd = &cobra.Command{
 
 Accepts either a cluster ARN or partial cluster name. When using a partial
 name, the command applies the same cluster filters as 'list' and switches only
-when exactly one cluster matches.
+when exactly one cluster matches by default.
+
+When multiple clusters match, you can choose one with --oldest or --newest.
 
 Optionally specify a namespace to set as default, or use a different AWS
 profile for authentication.`,
@@ -159,9 +260,23 @@ profile for authentication.`,
 			refresh = false
 		}
 
-		clusterInfo, err := resolveClusterForUse(target, profile, profileContains, nameContains, nameNotContains, region, version, refresh)
+		oldest, err := cmd.Flags().GetBool("oldest")
 		if err != nil {
-			fmt.Println(err.Error())
+			oldest = false
+		}
+
+		newest, err := cmd.Flags().GetBool("newest")
+		if err != nil {
+			newest = false
+		}
+
+		clusterInfo, ambiguousMatches, err := resolveClusterForUse(target, profile, profileContains, nameContains, nameNotContains, region, version, refresh, oldest, newest)
+		if err != nil {
+			if len(ambiguousMatches) > 1 {
+				printAmbiguousSelectionHelp(target, ambiguousMatches)
+			} else {
+				fmt.Println(err.Error())
+			}
 			os.Exit(1)
 		}
 
@@ -178,6 +293,8 @@ func init() {
 	useCmd.Flags().StringP("name-not-contains", "x", "", "Cluster name does not contain string")
 	useCmd.Flags().StringP("region", "r", "", "AWS region to use")
 	useCmd.Flags().StringP("version", "v", "", "Filter by EKS version")
+	useCmd.Flags().Bool("oldest", false, "When multiple clusters match, switch to the oldest cluster")
+	useCmd.Flags().Bool("newest", false, "When multiple clusters match, switch to the newest cluster")
 
 	rootCmd.AddCommand(useCmd)
 }

@@ -8,7 +8,9 @@ Switch kubectl context to a different EKS cluster by updating kubeconfig.
 
 Accepts either a cluster ARN or partial cluster name. When using a partial
 name, the command applies the same cluster filters as 'list' and switches only
-when exactly one cluster matches.
+when exactly one cluster matches by default.
+
+When multiple clusters match, you can choose one with --oldest or --newest.
 
 Optionally specify a namespace to set as default, or use a different AWS
 profile for authentication.
@@ -24,6 +26,8 @@ kubectl-eks use [cluster-name-or-arn] [flags]
   -c, --name-contains string       Cluster name contains string
   -x, --name-not-contains string   Cluster name does not contain string
   -n, --namespace string           Set specific namespace for the context
+      --newest                     When multiple clusters match, switch to the newest cluster
+      --oldest                     When multiple clusters match, switch to the oldest cluster
   -p, --profile string             Set specific AWS profile for the context
   -q, --profile-contains string    AWS profile contains string
   -u, --refresh                    Refresh data from AWS
