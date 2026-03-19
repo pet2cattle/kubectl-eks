@@ -1,7 +1,7 @@
 package karpenter
 
 import (
-	"github.com/pet2cattle/kubectl-eks/pkg/data"
+	"github.com/jordiprats/kubectl-eks/pkg/data"
 )
 
 func GetAMIUsage(profile, region, clusterName, eksVersion string) ([]data.KarpenterAMIUsageInfo, error) {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pet2cattle/kubectl-eks/pkg/data"
+	"github.com/jordiprats/kubectl-eks/pkg/data"
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

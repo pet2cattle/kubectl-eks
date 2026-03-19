@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pet2cattle/kubectl-eks/pkg/eks"
+	"github.com/jordiprats/kubectl-eks/pkg/eks"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/printers"
 )

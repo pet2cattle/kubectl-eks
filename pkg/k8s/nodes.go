@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pet2cattle/kubectl-eks/pkg/data"
+	"github.com/jordiprats/kubectl-eks/pkg/data"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pet2cattle/kubectl-eks/pkg/data"
+	"github.com/jordiprats/kubectl-eks/pkg/data"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/printers"

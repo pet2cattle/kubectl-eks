@@ -26,7 +26,7 @@ We provide pre-built binaries for Linux and macOS (arm64 and x86-64). Follow the
 
 ### <a name='BinaryInstallation'></a>Binary Installation
 
-1. Download the binary for your operating system from the [releases page](https://github.com/pet2cattle/kubectl-eks/releases).
+1. Download the binary for your operating system from the [releases page](https://github.com/jordiprats/kubectl-eks/releases).
 
 2. Install the binary:
 

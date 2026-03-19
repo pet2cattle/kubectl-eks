@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/pet2cattle/kubectl-eks/pkg/awsconfig"
-	"github.com/pet2cattle/kubectl-eks/pkg/data"
+	"github.com/jordiprats/kubectl-eks/pkg/awsconfig"
+	"github.com/jordiprats/kubectl-eks/pkg/data"
 )
 
 func LoadClusterList(args []string, profile, profile_contains, name_contains, name_not_contains, region, version string, refresh ...bool) ([]data.ClusterInfo, error) {

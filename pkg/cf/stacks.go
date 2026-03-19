@@ -7,7 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
-	"github.com/pet2cattle/kubectl-eks/pkg/awsutil"
+	"github.com/jordiprats/kubectl-eks/pkg/awsutil"
 )
 
 type StackInfo struct {

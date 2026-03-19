@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pet2cattle/kubectl-eks/cmd"
+	"github.com/jordiprats/kubectl-eks/cmd"
 )
 
 func main() {

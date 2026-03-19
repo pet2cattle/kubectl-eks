@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/pet2cattle/kubectl-eks/pkg/cf"
-	"github.com/pet2cattle/kubectl-eks/pkg/data"
-	"github.com/pet2cattle/kubectl-eks/pkg/printutils"
+	"github.com/jordiprats/kubectl-eks/pkg/cf"
+	"github.com/jordiprats/kubectl-eks/pkg/data"
+	"github.com/jordiprats/kubectl-eks/pkg/printutils"
 	"github.com/spf13/cobra"
 )
 

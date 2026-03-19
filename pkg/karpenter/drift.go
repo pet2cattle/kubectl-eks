@@ -3,7 +3,7 @@ package karpenter
 import (
 	"fmt"
 
-	"github.com/pet2cattle/kubectl-eks/pkg/data"
+	"github.com/jordiprats/kubectl-eks/pkg/data"
 )
 
 func GetDriftedResources(profile, region, clusterName string) ([]data.KarpenterDriftInfo, error) {

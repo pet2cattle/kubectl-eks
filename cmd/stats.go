@@ -3,9 +3,9 @@ package cmd
 import (
 	"log"
 
-	"github.com/pet2cattle/kubectl-eks/pkg/eks"
-	"github.com/pet2cattle/kubectl-eks/pkg/k8s"
-	"github.com/pet2cattle/kubectl-eks/pkg/printutils"
+	"github.com/jordiprats/kubectl-eks/pkg/eks"
+	"github.com/jordiprats/kubectl-eks/pkg/k8s"
+	"github.com/jordiprats/kubectl-eks/pkg/printutils"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 )

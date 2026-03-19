@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/pet2cattle/kubectl-eks/pkg/data"
-	"github.com/pet2cattle/kubectl-eks/pkg/eks"
-	"github.com/pet2cattle/kubectl-eks/pkg/printutils"
+	"github.com/jordiprats/kubectl-eks/pkg/data"
+	"github.com/jordiprats/kubectl-eks/pkg/eks"
+	"github.com/jordiprats/kubectl-eks/pkg/printutils"
 	"github.com/spf13/cobra"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

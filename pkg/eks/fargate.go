@@ -6,7 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
-	"github.com/pet2cattle/kubectl-eks/pkg/awsutil"
+	"github.com/jordiprats/kubectl-eks/pkg/awsutil"
 )
 
 type FargateProfileInfo struct {

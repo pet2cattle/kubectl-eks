@@ -6,9 +6,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/pet2cattle/kubectl-eks/pkg/ec2"
-	"github.com/pet2cattle/kubectl-eks/pkg/eks"
-	"github.com/pet2cattle/kubectl-eks/pkg/printutils"
+	"github.com/jordiprats/kubectl-eks/pkg/ec2"
+	"github.com/jordiprats/kubectl-eks/pkg/eks"
+	"github.com/jordiprats/kubectl-eks/pkg/printutils"
 	"github.com/spf13/cobra"
 )
 

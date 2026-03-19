@@ -1,4 +1,4 @@
-module github.com/pet2cattle/kubectl-eks
+module github.com/jordiprats/kubectl-eks
 
 go 1.25.0
 
