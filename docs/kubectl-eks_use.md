@@ -12,6 +12,11 @@ when exactly one cluster matches by default.
 
 When multiple clusters match, you can choose one with --oldest or --newest.
 
+If a kubeconfig context for the target cluster already exists and the
+credentials are still valid, the switch is performed locally without calling
+AWS APIs, making it significantly faster. When credentials have expired or no
+matching context exists, a full 'aws eks update-kubeconfig' is performed.
+
 Optionally specify a namespace to set as default, or use a different AWS
 profile for authentication.
 

@@ -66,6 +66,16 @@ func loadClusterByArn(clusterArn string) *data.ClusterInfo {
 		return nil
 	}
 
+	// Check on-disk cache first
+	loadCacheFromDisk()
+	if CachedData != nil {
+		if cached, exists := CachedData.ClusterByARN[clusterArn]; exists {
+			if cached.Arn == clusterArn && cached.AWSProfile != "" && cached.AWSProfile != "-" {
+				return &cached
+			}
+		}
+	}
+
 	// search for an AWS profile that matches the account ID, region and cluster name
 	awsProfiles := awsconfig.GetAWSProfilesWithEKSHints()
 	foundAwsProfile := ""
@@ -127,6 +137,7 @@ func loadClusterByArn(clusterArn string) *data.ClusterInfo {
 
 	// save update loaded configuration
 	CachedData.ClusterByARN[clusterArn] = clusterInfo
+	saveCacheToDisk()
 
 	return &clusterInfo
 }

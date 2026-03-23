@@ -90,6 +90,62 @@ func printIndentedClusters(indent string, matches []data.ClusterInfo) {
 	}
 }
 
+// tryFastSwitch attempts to switch to the target cluster using only local
+// kubeconfig data and the on-disk cache, without any AWS API calls.
+// Returns the matched ARN on success, or "" if the fast path cannot be used.
+func tryFastSwitch(target, namespace string) string {
+	if target == "" {
+		return ""
+	}
+
+	arnRegex := `^arn:aws:eks:([a-z0-9-]+):(\d{12}):cluster/([a-zA-Z0-9-]+)$`
+	re := regexp.MustCompile(arnRegex)
+
+	var candidateARN string
+
+	if re.MatchString(target) {
+		// Target is an ARN — use it directly
+		candidateARN = target
+	} else {
+		// Target is a cluster name (or substring) — look it up in the cache
+		loadCacheFromDisk()
+		if CachedData != nil && CachedData.ClusterByARN != nil {
+			var matches []string
+			for arn, info := range CachedData.ClusterByARN {
+				if info.ClusterName == target || strings.Contains(info.ClusterName, target) {
+					matches = append(matches, arn)
+				}
+			}
+			if len(matches) == 1 {
+				candidateARN = matches[0]
+			}
+			// If 0 or >1 matches, fall through to the slow path
+		}
+	}
+
+	if candidateARN == "" {
+		return ""
+	}
+
+	contextName, ok := k8s.FindContextForCluster(candidateARN)
+	if !ok {
+		return ""
+	}
+
+	if err := k8s.UseContext(contextName); err != nil {
+		return ""
+	}
+
+	if namespace != "" {
+		if err := k8s.SetNamespace(namespace); err != nil {
+			fmt.Printf("Failed to set namespace: %s\n", err.Error())
+			os.Exit(1)
+		}
+	}
+	printSwitchSuccess(candidateARN, namespace, "")
+	return candidateARN
+}
+
 func resolveClusterForUse(target, profile, profileContains, nameContains, nameNotContains, region, version string, refresh, oldest, newest bool) (*data.ClusterInfo, []data.ClusterInfo, error) {
 	if oldest && newest {
 		return nil, nil, fmt.Errorf("--oldest and --newest are mutually exclusive")
@@ -169,6 +225,25 @@ func resolveClusterForUse(target, profile, profileContains, nameContains, nameNo
 }
 
 func SwitchToCluster(clusterArn, namespace, profile string) {
+	// Fast path: if no profile override, check if kubeconfig already has a
+	// context for this cluster and switch to it directly, avoiding expensive
+	// AWS API calls.
+	if profile == "" {
+		contextName, found := k8s.FindContextForCluster(clusterArn)
+		if found {
+			if err := k8s.UseContext(contextName); err == nil {
+				if namespace != "" {
+					if err := k8s.SetNamespace(namespace); err != nil {
+						fmt.Printf("Failed to set namespace: %s\n", err.Error())
+						os.Exit(1)
+					}
+				}
+				printSwitchSuccess(clusterArn, namespace, "")
+				return
+			}
+		}
+	}
+
 	clusterInfo := loadClusterByArn(clusterArn)
 
 	// clusterInfo := loadClusterByArn(clusterARN)
@@ -200,6 +275,72 @@ func SwitchToCluster(clusterArn, namespace, profile string) {
 	}
 }
 
+// printSwitchSuccess prints the context-switch confirmation message.
+// It extracts cluster name and region from the ARN when clusterName/region are
+// not supplied directly.
+func printSwitchSuccess(clusterArn, namespace, profile string) {
+	clusterName := clusterArn
+	region := ""
+
+	arnRegex := `^arn:aws:eks:([a-z0-9-]+):\d{12}:cluster/([a-zA-Z0-9-]+)$`
+	if m := regexp.MustCompile(arnRegex).FindStringSubmatch(clusterArn); m != nil {
+		region = m[1]
+		clusterName = m[2]
+	}
+
+	switch {
+	case namespace != "" && profile != "":
+		fmt.Printf("Switched to EKS cluster %q (namespace: %q) in region %q using profile %q\n", clusterName, namespace, region, profile)
+	case namespace != "":
+		fmt.Printf("Switched to EKS cluster %q (namespace: %q) in region %q\n", clusterName, namespace, region)
+	case profile != "":
+		fmt.Printf("Switched to EKS cluster %q in region %q using profile %q\n", clusterName, region, profile)
+	default:
+		fmt.Printf("Switched to EKS cluster %q in region %q\n", clusterName, region)
+	}
+}
+
+// switchClusterWithInfo switches to an EKS cluster using already-resolved
+// cluster information, avoiding a redundant loadClusterByArn call.
+func switchClusterWithInfo(clusterInfo *data.ClusterInfo, namespace, profile string) {
+	// Fast path: context already exists in kubeconfig
+	if profile == "" {
+		contextName, found := k8s.FindContextForCluster(clusterInfo.Arn)
+		if found {
+			if err := k8s.UseContext(contextName); err == nil {
+				if namespace != "" {
+					if err := k8s.SetNamespace(namespace); err != nil {
+						fmt.Printf("Failed to set namespace: %s\n", err.Error())
+						os.Exit(1)
+					}
+				}
+				printSwitchSuccess(clusterInfo.Arn, namespace, "")
+				return
+			}
+		}
+	}
+
+	effectiveProfile := clusterInfo.AWSProfile
+	if profile != "" {
+		effectiveProfile = profile
+	}
+
+	err := eks.UpdateKubeConfig(effectiveProfile, clusterInfo.Region, clusterInfo.ClusterName, "")
+	if err != nil {
+		fmt.Printf("Failed to update kubeconfig: %s\n", err.Error())
+		os.Exit(1)
+	}
+
+	if namespace != "" {
+		err = k8s.SetNamespace(namespace)
+		if err != nil {
+			fmt.Printf("Failed to set namespace: %s\n", err.Error())
+			os.Exit(1)
+		}
+	}
+	printSwitchSuccess(clusterInfo.Arn, namespace, effectiveProfile)
+}
+
 var useCmd = &cobra.Command{
 	Use:   "use [cluster-name-or-arn]",
 	Short: "Switch kubectl context to a different EKS cluster",
@@ -210,6 +351,11 @@ name, the command applies the same cluster filters as 'list' and switches only
 when exactly one cluster matches by default.
 
 When multiple clusters match, you can choose one with --oldest or --newest.
+
+If a kubeconfig context for the target cluster already exists and the
+credentials are still valid, the switch is performed locally without calling
+AWS APIs, making it significantly faster. When credentials have expired or no
+matching context exists, a full 'aws eks update-kubeconfig' is performed.
 
 Optionally specify a namespace to set as default, or use a different AWS
 profile for authentication.`,
@@ -270,6 +416,15 @@ profile for authentication.`,
 			newest = false
 		}
 
+		// Fast path: try to reuse an existing kubeconfig context without
+		// any AWS API calls. Works for both ARN and name-based lookups.
+		if profile == "" && !refresh {
+			arn := tryFastSwitch(target, namespace)
+			if arn != "" {
+				return
+			}
+		}
+
 		clusterInfo, ambiguousMatches, err := resolveClusterForUse(target, profile, profileContains, nameContains, nameNotContains, region, version, refresh, oldest, newest)
 		if err != nil {
 			if len(ambiguousMatches) > 1 {
@@ -280,7 +435,7 @@ profile for authentication.`,
 			os.Exit(1)
 		}
 
-		SwitchToCluster(clusterInfo.Arn, namespace, profile)
+		switchClusterWithInfo(clusterInfo, namespace, profile)
 	},
 }
 
