@@ -60,6 +60,7 @@ kubectl-eks [flags]
 ### SEE ALSO
 
 * [kubectl-eks aws-profile](kubectl-eks_aws-profile.md)	 - Get AWS profile
+* [kubectl-eks cache](kubectl-eks_cache.md)	 - Manage the local cluster cache
 * [kubectl-eks completion](kubectl-eks_completion.md)	 - Generate the autocompletion script for the specified shell
 * [kubectl-eks events](kubectl-eks_events.md)	 - Show Kubernetes events across namespaces
 * [kubectl-eks fargate-profiles](kubectl-eks_fargate-profiles.md)	 - List EKS Fargate profiles and their selectors
