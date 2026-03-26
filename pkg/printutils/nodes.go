@@ -3,6 +3,7 @@ package printutils
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/jordiprats/kubectl-eks/pkg/data"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,10 +33,7 @@ func PrintMultiClusterNodes(noHeaders bool, wide bool, nodes []data.ClusterNodeI
 
 	if wide {
 		table.ColumnDefinitions = append(table.ColumnDefinitions,
-			v1.TableColumnDefinition{Name: "MEMORY PRESSURE", Type: "string"},
-			v1.TableColumnDefinition{Name: "DISK PRESSURE", Type: "string"},
-			v1.TableColumnDefinition{Name: "PID PRESSURE", Type: "string"},
-			v1.TableColumnDefinition{Name: "NETWORK UNAVAILABLE", Type: "string"},
+			v1.TableColumnDefinition{Name: "NODE CONDITIONS", Type: "string"},
 		)
 	}
 
@@ -53,12 +51,7 @@ func PrintMultiClusterNodes(noHeaders bool, wide bool, nodes []data.ClusterNodeI
 		}
 
 		if wide {
-			cells = append(cells,
-				n.Node.MemoryPressure,
-				n.Node.DiskPressure,
-				n.Node.PIDPressure,
-				n.Node.NetworkUnavailable,
-			)
+			cells = append(cells, formatNodeConditions(n.Node))
 		}
 
 		table.Rows = append(table.Rows, v1.TableRow{Cells: cells})
@@ -69,4 +62,27 @@ func PrintMultiClusterNodes(noHeaders bool, wide bool, nodes []data.ClusterNodeI
 		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func formatNodeConditions(node data.NodeInfo) string {
+	conditions := make([]string, 0, 4)
+
+	if node.MemoryPressure == "True" {
+		conditions = append(conditions, "MemoryPressure")
+	}
+	if node.DiskPressure == "True" {
+		conditions = append(conditions, "DiskPressure")
+	}
+	if node.PIDPressure == "True" {
+		conditions = append(conditions, "PIDPressure")
+	}
+	if node.NetworkUnavailable == "True" {
+		conditions = append(conditions, "NetworkUnavailable")
+	}
+
+	if len(conditions) == 0 {
+		return "-"
+	}
+
+	return strings.Join(conditions, ",")
 }
