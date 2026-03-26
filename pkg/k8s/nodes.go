@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jordiprats/kubectl-eks/pkg/data"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
@@ -60,18 +61,7 @@ func GetNodesWithConfig(restConfig *rest.Config) ([]data.NodeInfo, error) {
 			managedBy = "AWS"
 		}
 
-		// Node status
-		status := "Unknown"
-		for _, cond := range node.Status.Conditions {
-			if cond.Type == "Ready" {
-				if cond.Status == "True" {
-					status = "Ready"
-				} else {
-					status = "NotReady"
-				}
-				break
-			}
-		}
+		status := getNodeStatus(node)
 
 		nodeList = append(nodeList, data.NodeInfo{
 			Name:         node.Name,
@@ -133,18 +123,7 @@ func GetNodes(configFlags *genericclioptions.ConfigFlags) ([]data.NodeInfo, erro
 			managedBy = "AWS"
 		}
 
-		// Node status
-		status := "Unknown"
-		for _, cond := range node.Status.Conditions {
-			if cond.Type == "Ready" {
-				if cond.Status == "True" {
-					status = "Ready"
-				} else {
-					status = "NotReady"
-				}
-				break
-			}
-		}
+		status := getNodeStatus(node)
 
 		nodeList = append(nodeList, data.NodeInfo{
 			Name:         node.Name,
@@ -157,4 +136,24 @@ func GetNodes(configFlags *genericclioptions.ConfigFlags) ([]data.NodeInfo, erro
 	}
 
 	return nodeList, nil
+}
+
+func getNodeStatus(node corev1.Node) string {
+	status := "Unknown"
+	for _, cond := range node.Status.Conditions {
+		if cond.Type == corev1.NodeReady {
+			if cond.Status == corev1.ConditionTrue {
+				status = "Ready"
+			} else {
+				status = "NotReady"
+			}
+			break
+		}
+	}
+
+	if node.Spec.Unschedulable {
+		status += ",SchedulingDisabled"
+	}
+
+	return status
 }
