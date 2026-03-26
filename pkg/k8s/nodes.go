@@ -70,6 +70,12 @@ func GetNodesWithConfig(restConfig *rest.Config) ([]data.NodeInfo, error) {
 			ManagedBy:          managedBy,
 			Created:            node.CreationTimestamp.Time,
 			Status:             status,
+			CPUCapacity:        getNodeResourceQuantity(node, true, corev1.ResourceCPU),
+			CPUAllocatable:     getNodeResourceQuantity(node, false, corev1.ResourceCPU),
+			MemoryCapacity:     getNodeResourceQuantity(node, true, corev1.ResourceMemory),
+			MemoryAllocatable:  getNodeResourceQuantity(node, false, corev1.ResourceMemory),
+			PodsCapacity:       getNodeResourceQuantity(node, true, corev1.ResourcePods),
+			PodsAllocatable:    getNodeResourceQuantity(node, false, corev1.ResourcePods),
 			MemoryPressure:     getNodeConditionStatus(node, corev1.NodeMemoryPressure),
 			DiskPressure:       getNodeConditionStatus(node, corev1.NodeDiskPressure),
 			PIDPressure:        getNodeConditionStatus(node, corev1.NodePIDPressure),
@@ -136,6 +142,12 @@ func GetNodes(configFlags *genericclioptions.ConfigFlags) ([]data.NodeInfo, erro
 			ManagedBy:          managedBy,
 			Created:            node.CreationTimestamp.Time,
 			Status:             status,
+			CPUCapacity:        getNodeResourceQuantity(node, true, corev1.ResourceCPU),
+			CPUAllocatable:     getNodeResourceQuantity(node, false, corev1.ResourceCPU),
+			MemoryCapacity:     getNodeResourceQuantity(node, true, corev1.ResourceMemory),
+			MemoryAllocatable:  getNodeResourceQuantity(node, false, corev1.ResourceMemory),
+			PodsCapacity:       getNodeResourceQuantity(node, true, corev1.ResourcePods),
+			PodsAllocatable:    getNodeResourceQuantity(node, false, corev1.ResourcePods),
 			MemoryPressure:     getNodeConditionStatus(node, corev1.NodeMemoryPressure),
 			DiskPressure:       getNodeConditionStatus(node, corev1.NodeDiskPressure),
 			PIDPressure:        getNodeConditionStatus(node, corev1.NodePIDPressure),
@@ -174,4 +186,24 @@ func getNodeConditionStatus(node corev1.Node, conditionType corev1.NodeCondition
 	}
 
 	return "Unknown"
+}
+
+func getNodeResourceQuantity(node corev1.Node, capacity bool, resourceName corev1.ResourceName) string {
+	var quantity string
+
+	if capacity {
+		if q, ok := node.Status.Capacity[resourceName]; ok {
+			quantity = q.String()
+		}
+	} else {
+		if q, ok := node.Status.Allocatable[resourceName]; ok {
+			quantity = q.String()
+		}
+	}
+
+	if quantity == "" {
+		return "-"
+	}
+
+	return quantity
 }

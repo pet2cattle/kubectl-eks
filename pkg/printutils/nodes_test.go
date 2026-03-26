@@ -49,3 +49,12 @@ func TestFormatNodeConditions(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatCapacityAllocatable(t *testing.T) {
+	if got := formatCapacityAllocatable("4", "3500m"); got != "4/3500m" {
+		t.Fatalf("formatCapacityAllocatable() = %q, want %q", got, "4/3500m")
+	}
+	if got := formatCapacityAllocatable("-", "-"); got != "-/-" {
+		t.Fatalf("formatCapacityAllocatable() = %q, want %q", got, "-/-")
+	}
+}

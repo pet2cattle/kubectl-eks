@@ -30,6 +30,12 @@ type NodeInfo struct {
 	ManagedBy          string
 	Created            time.Time
 	Status             string
+	CPUCapacity        string
+	CPUAllocatable     string
+	MemoryCapacity     string
+	MemoryAllocatable  string
+	PodsCapacity       string
+	PodsAllocatable    string
 	MemoryPressure     string
 	DiskPressure       string
 	PIDPressure        string

@@ -33,6 +33,9 @@ func PrintMultiClusterNodes(noHeaders bool, wide bool, nodes []data.ClusterNodeI
 
 	if wide {
 		table.ColumnDefinitions = append(table.ColumnDefinitions,
+			v1.TableColumnDefinition{Name: "CPU", Type: "string"},
+			v1.TableColumnDefinition{Name: "MEMORY", Type: "string"},
+			v1.TableColumnDefinition{Name: "PODS", Type: "string"},
 			v1.TableColumnDefinition{Name: "NODE CONDITIONS", Type: "string"},
 		)
 	}
@@ -51,7 +54,12 @@ func PrintMultiClusterNodes(noHeaders bool, wide bool, nodes []data.ClusterNodeI
 		}
 
 		if wide {
-			cells = append(cells, formatNodeConditions(n.Node))
+			cells = append(cells,
+				formatCapacityAllocatable(n.Node.CPUCapacity, n.Node.CPUAllocatable),
+				formatCapacityAllocatable(n.Node.MemoryCapacity, n.Node.MemoryAllocatable),
+				formatCapacityAllocatable(n.Node.PodsCapacity, n.Node.PodsAllocatable),
+				formatNodeConditions(n.Node),
+			)
 		}
 
 		table.Rows = append(table.Rows, v1.TableRow{Cells: cells})
@@ -85,4 +93,8 @@ func formatNodeConditions(node data.NodeInfo) string {
 	}
 
 	return strings.Join(conditions, ",")
+}
+
+func formatCapacityAllocatable(capacity, allocatable string) string {
+	return fmt.Sprintf("%s/%s", capacity, allocatable)
 }

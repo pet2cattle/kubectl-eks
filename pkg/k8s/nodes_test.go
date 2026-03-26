@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 func TestGetNodeStatus(t *testing.T) {
@@ -91,5 +92,44 @@ func TestGetNodeConditionStatus(t *testing.T) {
 	}
 	if got := getNodeConditionStatus(node, corev1.NodeNetworkUnavailable); got != "Unknown" {
 		t.Fatalf("network unavailable = %q, want %q", got, "Unknown")
+	}
+}
+
+func TestGetNodeResourceQuantity(t *testing.T) {
+	node := corev1.Node{
+		Status: corev1.NodeStatus{
+			Capacity: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("4"),
+				corev1.ResourceMemory: resource.MustParse("16Gi"),
+				corev1.ResourcePods:   resource.MustParse("110"),
+			},
+			Allocatable: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("3500m"),
+				corev1.ResourceMemory: resource.MustParse("14Gi"),
+				corev1.ResourcePods:   resource.MustParse("100"),
+			},
+		},
+	}
+
+	if got := getNodeResourceQuantity(node, true, corev1.ResourceCPU); got != "4" {
+		t.Fatalf("cpu capacity = %q, want %q", got, "4")
+	}
+	if got := getNodeResourceQuantity(node, false, corev1.ResourceCPU); got != "3500m" {
+		t.Fatalf("cpu allocatable = %q, want %q", got, "3500m")
+	}
+	if got := getNodeResourceQuantity(node, true, corev1.ResourceMemory); got != "16Gi" {
+		t.Fatalf("memory capacity = %q, want %q", got, "16Gi")
+	}
+	if got := getNodeResourceQuantity(node, false, corev1.ResourceMemory); got != "14Gi" {
+		t.Fatalf("memory allocatable = %q, want %q", got, "14Gi")
+	}
+	if got := getNodeResourceQuantity(node, true, corev1.ResourcePods); got != "110" {
+		t.Fatalf("pods capacity = %q, want %q", got, "110")
+	}
+	if got := getNodeResourceQuantity(node, false, corev1.ResourcePods); got != "100" {
+		t.Fatalf("pods allocatable = %q, want %q", got, "100")
+	}
+	if got := getNodeResourceQuantity(node, true, corev1.ResourceEphemeralStorage); got != "-" {
+		t.Fatalf("missing resource = %q, want %q", got, "-")
 	}
 }
