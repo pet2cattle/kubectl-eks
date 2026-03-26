@@ -37,6 +37,7 @@ kubectl-eks list [flags]
   -h, --help                       help for list
   -c, --name-contains string       Cluster name contains string
   -x, --name-not-contains string   Cluster name does not contain string
+  -o, --output string              Output format: wide
   -p, --profile string             AWS profile to use
   -q, --profile-contains string    AWS profile contains string
   -u, --refresh                    Refresh data from AWS

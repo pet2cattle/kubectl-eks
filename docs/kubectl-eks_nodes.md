@@ -23,6 +23,9 @@ kubectl-eks nodes [flags]
   # List nodes for current cluster
   kubectl eks nodes
 
+	# List nodes for current cluster with pressure indicators
+	kubectl eks nodes -o wide
+
   # List nodes across clusters matching filter
   kubectl eks nodes --name-contains prod
 
@@ -39,6 +42,7 @@ kubectl-eks nodes [flags]
   -h, --help                       help for nodes
   -c, --name-contains string       Cluster name contains string
   -x, --name-not-contains string   Cluster name does not contain string
+  -o, --output string              Output format: wide
   -p, --profile string             AWS profile to use
   -q, --profile-contains string    AWS profile contains string
   -u, --refresh                    Do not use cached data, refresh from AWS
