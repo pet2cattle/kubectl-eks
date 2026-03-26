@@ -23,6 +23,11 @@ func GetNodesWithConfig(restConfig *rest.Config) ([]data.NodeInfo, error) {
 		return nil, fmt.Errorf("failed to list nodes: %w", err)
 	}
 
+	runningPodsByNode, err := getRunningPodsByNode(clientset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list running pods: %w", err)
+	}
+
 	var nodeList []data.NodeInfo
 	for _, node := range nodes.Items {
 		labels := node.Labels
@@ -79,6 +84,7 @@ func GetNodesWithConfig(restConfig *rest.Config) ([]data.NodeInfo, error) {
 			PodsCapacity:       getNodeResourceQuantity(node, true, corev1.ResourcePods),
 			PodsAllocatable:    getNodeResourceQuantity(node, false, corev1.ResourcePods),
 			PodsUsed:           getNodeResourceUsed(node, corev1.ResourcePods),
+			PodsRunning:        runningPodsByNode[node.Name],
 			MemoryPressure:     getNodeConditionStatus(node, corev1.NodeMemoryPressure),
 			DiskPressure:       getNodeConditionStatus(node, corev1.NodeDiskPressure),
 			PIDPressure:        getNodeConditionStatus(node, corev1.NodePIDPressure),
@@ -103,6 +109,11 @@ func GetNodes(configFlags *genericclioptions.ConfigFlags) ([]data.NodeInfo, erro
 	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list nodes: %w", err)
+	}
+
+	runningPodsByNode, err := getRunningPodsByNode(clientset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list running pods: %w", err)
 	}
 
 	var nodeList []data.NodeInfo
@@ -154,6 +165,7 @@ func GetNodes(configFlags *genericclioptions.ConfigFlags) ([]data.NodeInfo, erro
 			PodsCapacity:       getNodeResourceQuantity(node, true, corev1.ResourcePods),
 			PodsAllocatable:    getNodeResourceQuantity(node, false, corev1.ResourcePods),
 			PodsUsed:           getNodeResourceUsed(node, corev1.ResourcePods),
+			PodsRunning:        runningPodsByNode[node.Name],
 			MemoryPressure:     getNodeConditionStatus(node, corev1.NodeMemoryPressure),
 			DiskPressure:       getNodeConditionStatus(node, corev1.NodeDiskPressure),
 			PIDPressure:        getNodeConditionStatus(node, corev1.NodePIDPressure),
@@ -228,4 +240,21 @@ func getNodeResourceUsed(node corev1.Node, resourceName corev1.ResourceName) str
 	}
 
 	return used.String()
+}
+
+func getRunningPodsByNode(clientset *kubernetes.Clientset) (map[string]int, error) {
+	pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{FieldSelector: "status.phase=Running"})
+	if err != nil {
+		return nil, err
+	}
+
+	runningPodsByNode := make(map[string]int)
+	for _, pod := range pods.Items {
+		if pod.Spec.NodeName == "" {
+			continue
+		}
+		runningPodsByNode[pod.Spec.NodeName]++
+	}
+
+	return runningPodsByNode, nil
 }

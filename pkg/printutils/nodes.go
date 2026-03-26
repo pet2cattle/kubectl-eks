@@ -58,7 +58,7 @@ func PrintMultiClusterNodes(noHeaders bool, wide bool, nodes []data.ClusterNodeI
 			cells = append(cells,
 				formatCPUUsedTotalRemaining(n.Node.CPUUsed, n.Node.CPUCapacity, n.Node.CPUAllocatable),
 				formatMemoryUsedTotalRemaining(n.Node.MemoryUsed, n.Node.MemoryCapacity, n.Node.MemoryAllocatable),
-				n.Node.PodsCapacity,
+				n.Node.PodsRunning,
 				formatNodeConditions(n.Node),
 			)
 		}

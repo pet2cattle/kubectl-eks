@@ -5,15 +5,27 @@ import (
 )
 
 type ClusterInfo struct {
-	ClusterName  string
-	Namespace    string
-	Region       string
-	AWSProfile   string
-	AWSAccountID string
-	Status       string
-	Version      string
-	Arn          string
-	CreatedAt    string
+	ClusterName            string
+	Namespace              string
+	Region                 string
+	AWSProfile             string
+	AWSAccountID           string
+	Status                 string
+	Version                string
+	Arn                    string
+	CreatedAt              string
+	NodeCount              int
+	NodeReady              int
+	NodeNotReady           int
+	NodeSchedDisabled      int
+	EC2NodeCount           int
+	FargateNodeCount       int
+	CPUUsedTotal           string
+	CPUCapacityTotal       string
+	CPUAllocatableTotal    string
+	MemoryUsedTotal        string
+	MemoryCapacityTotal    string
+	MemoryAllocatableTotal string
 }
 
 type ClusterNodeInfo struct {
@@ -39,6 +51,7 @@ type NodeInfo struct {
 	PodsCapacity       string
 	PodsAllocatable    string
 	PodsUsed           string
+	PodsRunning        int
 	MemoryPressure     string
 	DiskPressure       string
 	PIDPressure        string

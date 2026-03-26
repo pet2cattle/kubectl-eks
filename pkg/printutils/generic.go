@@ -11,6 +11,7 @@ import (
 	"github.com/jordiprats/kubectl-eks/pkg/data"
 	"github.com/jordiprats/kubectl-eks/pkg/eks"
 	"github.com/jordiprats/kubectl-eks/pkg/k8s"
+	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/printers"
@@ -118,6 +119,11 @@ func PrintK8SStats(noHeaders bool, statsList ...k8s.K8Sstats) {
 
 // printResults prints results in a kubectl-style table format
 func PrintClusters(noHeaders bool, clusterInfos ...data.ClusterInfo) {
+	PrintClustersWithOptions(noHeaders, false, clusterInfos...)
+}
+
+// PrintClustersWithOptions prints cluster info with optional wide columns.
+func PrintClustersWithOptions(noHeaders bool, wide bool, clusterInfos ...data.ClusterInfo) {
 	// Sort the clusterInfos by ClusterName (you can customize the field for sorting)
 	sort.Slice(clusterInfos, func(i, j int) bool {
 		return clusterInfos[i].AWSProfile < clusterInfos[j].AWSProfile
@@ -143,6 +149,13 @@ func PrintClusters(noHeaders bool, clusterInfos ...data.ClusterInfo) {
 				{Name: "ARN", Type: "string"},
 			},
 		}
+		if wide {
+			table.ColumnDefinitions = append(table.ColumnDefinitions,
+				v1.TableColumnDefinition{Name: "NODE HEALTH", Type: "string"},
+				v1.TableColumnDefinition{Name: "CPU USED/TOTAL (REM)", Type: "string"},
+				v1.TableColumnDefinition{Name: "MEMORY USED/TOTAL (REM)", Type: "string"},
+			)
+		}
 	} else {
 		table = &v1.Table{
 			ColumnDefinitions: []v1.TableColumnDefinition{
@@ -156,37 +169,56 @@ func PrintClusters(noHeaders bool, clusterInfos ...data.ClusterInfo) {
 				{Name: "ARN", Type: "string"},
 			},
 		}
+		if wide {
+			table.ColumnDefinitions = append(table.ColumnDefinitions,
+				v1.TableColumnDefinition{Name: "NODE HEALTH", Type: "string"},
+				v1.TableColumnDefinition{Name: "CPU USED/TOTAL (REM)", Type: "string"},
+				v1.TableColumnDefinition{Name: "MEMORY USED/TOTAL (REM)", Type: "string"},
+			)
+		}
 	}
 
 	// Populate rows with data from the variadic ClusterInfo
 	for _, clusterInfo := range clusterInfos {
 		if len(clusterInfos) == 1 && clusterInfo.Namespace != "" {
-			table.Rows = append(table.Rows, v1.TableRow{
-				Cells: []interface{}{
-					// clusterInfo.AWSAccountID,
-					clusterInfo.AWSProfile,
-					clusterInfo.Region,
-					clusterInfo.ClusterName,
-					clusterInfo.Namespace,
-					clusterInfo.Status,
-					clusterInfo.Version,
-					clusterInfo.CreatedAt,
-					clusterInfo.Arn,
-				},
-			})
+			cells := []interface{}{
+				// clusterInfo.AWSAccountID,
+				clusterInfo.AWSProfile,
+				clusterInfo.Region,
+				clusterInfo.ClusterName,
+				clusterInfo.Namespace,
+				clusterInfo.Status,
+				clusterInfo.Version,
+				clusterInfo.CreatedAt,
+				clusterInfo.Arn,
+			}
+			if wide {
+				cells = append(cells,
+					formatClusterNodeHealth(clusterInfo.NodeCount, clusterInfo.NodeReady, clusterInfo.NodeNotReady, clusterInfo.NodeSchedDisabled),
+					formatClusterCPUUsedTotalRemaining(clusterInfo.CPUUsedTotal, clusterInfo.CPUCapacityTotal, clusterInfo.CPUAllocatableTotal),
+					formatClusterMemoryUsedTotalRemaining(clusterInfo.MemoryUsedTotal, clusterInfo.MemoryCapacityTotal, clusterInfo.MemoryAllocatableTotal),
+				)
+			}
+			table.Rows = append(table.Rows, v1.TableRow{Cells: cells})
 		} else {
-			table.Rows = append(table.Rows, v1.TableRow{
-				Cells: []interface{}{
-					// clusterInfo.AWSAccountID,
-					clusterInfo.AWSProfile,
-					clusterInfo.Region,
-					clusterInfo.ClusterName,
-					clusterInfo.Status,
-					clusterInfo.Version,
-					clusterInfo.CreatedAt,
-					clusterInfo.Arn,
-				},
-			})
+			cells := []interface{}{
+				// clusterInfo.AWSAccountID,
+				clusterInfo.AWSProfile,
+				clusterInfo.Region,
+				clusterInfo.ClusterName,
+				clusterInfo.Status,
+				clusterInfo.Version,
+				clusterInfo.CreatedAt,
+				clusterInfo.Arn,
+			}
+			if wide {
+				cells = append(cells,
+					formatClusterNodeHealth(clusterInfo.NodeCount, clusterInfo.NodeReady, clusterInfo.NodeNotReady, clusterInfo.NodeSchedDisabled),
+					formatClusterCPUUsedTotalRemaining(clusterInfo.CPUUsedTotal, clusterInfo.CPUCapacityTotal, clusterInfo.CPUAllocatableTotal),
+					formatClusterMemoryUsedTotalRemaining(clusterInfo.MemoryUsedTotal, clusterInfo.MemoryCapacityTotal, clusterInfo.MemoryAllocatableTotal),
+				)
+			}
+			table.Rows = append(table.Rows, v1.TableRow{Cells: cells})
 		}
 	}
 
@@ -196,6 +228,60 @@ func PrintClusters(noHeaders bool, clusterInfos ...data.ClusterInfo) {
 		fmt.Fprintf(os.Stderr, "Error printing table: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func formatClusterCPUUsedTotalRemaining(used, total, remaining string) string {
+	return fmt.Sprintf("%s/%s (%s)", formatClusterCPUQuantityCores(used), formatClusterCPUQuantityCores(total), formatClusterCPUQuantityCores(remaining))
+}
+
+func formatClusterNodeHealth(total, ready, notReady, schedDisabled int) string {
+	if total == 0 {
+		return "-"
+	}
+
+	return fmt.Sprintf("%d/%d Ready (NR:%d SD:%d)", ready, total, notReady, schedDisabled)
+}
+
+func formatClusterCPUQuantityCores(value string) string {
+	if value == "" || value == "-" {
+		return "-"
+	}
+
+	q, err := resource.ParseQuantity(value)
+	if err != nil {
+		return value
+	}
+
+	cores := float64(q.MilliValue()) / 1000.0
+	formatted := fmt.Sprintf("%.1f", cores)
+	if strings.HasSuffix(formatted, ".0") {
+		return strings.TrimSuffix(formatted, ".0")
+	}
+
+	return formatted
+}
+
+func formatClusterMemoryUsedTotalRemaining(used, total, remaining string) string {
+	return fmt.Sprintf("%s/%s (%s)", formatClusterMemoryQuantityGi(used), formatClusterMemoryQuantityGi(total), formatClusterMemoryQuantityGi(remaining))
+}
+
+func formatClusterMemoryQuantityGi(value string) string {
+	if value == "" || value == "-" {
+		return "-"
+	}
+
+	q, err := resource.ParseQuantity(value)
+	if err != nil {
+		return value
+	}
+
+	gi := q.AsApproximateFloat64() / (1024 * 1024 * 1024)
+	formatted := fmt.Sprintf("%.1fGi", gi)
+	if strings.HasSuffix(formatted, ".0Gi") {
+		return strings.TrimSuffix(formatted, ".0Gi") + "Gi"
+	}
+
+	return formatted
 }
 
 // PrintJsonPathResults prints the results in a kubectl-style table format

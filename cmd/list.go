@@ -8,9 +8,12 @@ import (
 	"github.com/jordiprats/kubectl-eks/pkg/awsconfig"
 	"github.com/jordiprats/kubectl-eks/pkg/data"
 	"github.com/jordiprats/kubectl-eks/pkg/eks"
+	"github.com/jordiprats/kubectl-eks/pkg/k8s"
 	"github.com/jordiprats/kubectl-eks/pkg/printutils"
 	"github.com/jordiprats/kubectl-eks/pkg/sts"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 var listCmd = &cobra.Command{
@@ -72,6 +75,12 @@ You can filter by cluster name, region, version, or AWS profile.`,
 		if err != nil {
 			arnOnly = false
 		}
+
+		output, err := cmd.Flags().GetString("output")
+		if err != nil {
+			output = ""
+		}
+		wide := output == "wide"
 
 		loadCacheFromDisk()
 		if CachedData == nil {
@@ -164,12 +173,16 @@ You can filter by cluster name, region, version, or AWS profile.`,
 				fmt.Println(cluster.Arn)
 			}
 		} else {
+			if wide {
+				clusterList = enrichClusterNodeStats(clusterList)
+			}
+
 			noHeaders, err := cmd.Flags().GetBool("no-headers")
 			if err != nil {
 				noHeaders = false
 			}
 
-			printutils.PrintClusters(noHeaders, clusterList...)
+			printutils.PrintClustersWithOptions(noHeaders, wide, clusterList...)
 		}
 
 		saveCacheToDisk()
@@ -178,6 +191,14 @@ You can filter by cluster name, region, version, or AWS profile.`,
 
 func loadClusters(profile, region string) {
 	// fmt.Printf("Loading clusters using profile: %s region: %s\n", profile, region)
+
+	// Ensure the cache has an entry for this profile/region even when no clusters are found.
+	if _, exists := CachedData.ClusterList[profile]; !exists {
+		CachedData.ClusterList[profile] = make(map[string][]data.ClusterInfo)
+	}
+	if _, exists := CachedData.ClusterList[profile][region]; !exists {
+		CachedData.ClusterList[profile][region] = []data.ClusterInfo{}
+	}
 
 	// Get the list of clusters
 	clusters, err := eks.GetClusters(profile, region)
@@ -215,16 +236,6 @@ func loadClusters(profile, region string) {
 
 		// CachedData.ClusterInfo[clusterName] = clusterInfo
 
-		_, exists := CachedData.ClusterList[profile]
-		if !exists {
-			CachedData.ClusterList[profile] = make(map[string][]data.ClusterInfo)
-		}
-
-		_, exists = CachedData.ClusterList[profile][region]
-		if !exists {
-			CachedData.ClusterList[profile][region] = []data.ClusterInfo{}
-		}
-
 		// fmt.Printf("Adding cluster %s to profile %s and region %s\n", clusterData.ClusterName, profile, region)
 		CachedData.ClusterList[profile][region] = append(CachedData.ClusterList[profile][region], clusterData)
 	}
@@ -240,6 +251,95 @@ func init() {
 	listCmd.Flags().StringP("region", "r", "", "AWS region to use")
 	listCmd.Flags().StringP("version", "v", "", "Filter by EKS version")
 	listCmd.Flags().BoolP("arn-only", "1", false, "Output only cluster ARNs, one per line")
+	listCmd.Flags().StringP("output", "o", "", "Output format: wide")
 
 	rootCmd.AddCommand(listCmd)
+}
+
+func enrichClusterNodeStats(clusterList []data.ClusterInfo) []data.ClusterInfo {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	config, err := loadingRules.Load()
+	if err != nil {
+		return clusterList
+	}
+
+	previousContext := config.CurrentContext
+	defer func() {
+		config.CurrentContext = previousContext
+		_ = clientcmd.ModifyConfig(loadingRules, *config, true)
+	}()
+
+	for i := range clusterList {
+		cluster := &clusterList[i]
+
+		err := eks.UpdateKubeConfig(cluster.AWSProfile, cluster.Region, cluster.ClusterName, "")
+		if err != nil {
+			continue
+		}
+
+		clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			clientcmd.NewDefaultClientConfigLoadingRules(),
+			&clientcmd.ConfigOverrides{},
+		)
+
+		restConfig, err := clientConfig.ClientConfig()
+		if err != nil {
+			continue
+		}
+
+		nodes, err := k8s.GetNodesWithConfig(restConfig)
+		if err != nil {
+			continue
+		}
+
+		cluster.NodeCount = len(nodes)
+		totalCPUUsedMilli := int64(0)
+		totalCPUCapacityMilli := int64(0)
+		totalCPUAllocMilli := int64(0)
+		totalMemUsedBytes := int64(0)
+		totalMemCapacityBytes := int64(0)
+		totalMemAllocBytes := int64(0)
+
+		for _, node := range nodes {
+			if strings.HasPrefix(node.Status, "Ready") {
+				cluster.NodeReady++
+			} else {
+				cluster.NodeNotReady++
+			}
+
+			if strings.Contains(node.Status, "SchedulingDisabled") {
+				cluster.NodeSchedDisabled++
+			}
+
+			if q, err := resource.ParseQuantity(node.CPUUsed); err == nil {
+				totalCPUUsedMilli += q.MilliValue()
+			}
+			if q, err := resource.ParseQuantity(node.CPUCapacity); err == nil {
+				totalCPUCapacityMilli += q.MilliValue()
+			}
+			if q, err := resource.ParseQuantity(node.CPUAllocatable); err == nil {
+				totalCPUAllocMilli += q.MilliValue()
+			}
+
+			if q, err := resource.ParseQuantity(node.MemoryUsed); err == nil {
+				totalMemUsedBytes += q.Value()
+			}
+			if q, err := resource.ParseQuantity(node.MemoryCapacity); err == nil {
+				totalMemCapacityBytes += q.Value()
+			}
+			if q, err := resource.ParseQuantity(node.MemoryAllocatable); err == nil {
+				totalMemAllocBytes += q.Value()
+			}
+		}
+
+		cluster.CPUUsedTotal = resource.NewMilliQuantity(totalCPUUsedMilli, resource.DecimalSI).String()
+		cluster.CPUCapacityTotal = resource.NewMilliQuantity(totalCPUCapacityMilli, resource.DecimalSI).String()
+		cluster.CPUAllocatableTotal = resource.NewMilliQuantity(totalCPUAllocMilli, resource.DecimalSI).String()
+
+		cluster.MemoryUsedTotal = resource.NewQuantity(totalMemUsedBytes, resource.BinarySI).String()
+		cluster.MemoryCapacityTotal = resource.NewQuantity(totalMemCapacityBytes, resource.BinarySI).String()
+		cluster.MemoryAllocatableTotal = resource.NewQuantity(totalMemAllocBytes, resource.BinarySI).String()
+	}
+
+	return clusterList
 }
