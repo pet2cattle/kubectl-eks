@@ -32,10 +32,13 @@ type NodeInfo struct {
 	Status             string
 	CPUCapacity        string
 	CPUAllocatable     string
+	CPUUsed            string
 	MemoryCapacity     string
 	MemoryAllocatable  string
+	MemoryUsed         string
 	PodsCapacity       string
 	PodsAllocatable    string
+	PodsUsed           string
 	MemoryPressure     string
 	DiskPressure       string
 	PIDPressure        string

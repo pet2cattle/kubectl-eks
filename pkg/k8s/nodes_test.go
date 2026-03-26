@@ -133,3 +133,33 @@ func TestGetNodeResourceQuantity(t *testing.T) {
 		t.Fatalf("missing resource = %q, want %q", got, "-")
 	}
 }
+
+func TestGetNodeResourceUsed(t *testing.T) {
+	node := corev1.Node{
+		Status: corev1.NodeStatus{
+			Capacity: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("4"),
+				corev1.ResourceMemory: resource.MustParse("16Gi"),
+				corev1.ResourcePods:   resource.MustParse("110"),
+			},
+			Allocatable: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("3500m"),
+				corev1.ResourceMemory: resource.MustParse("14Gi"),
+				corev1.ResourcePods:   resource.MustParse("100"),
+			},
+		},
+	}
+
+	if got := getNodeResourceUsed(node, corev1.ResourceCPU); got != "500m" {
+		t.Fatalf("cpu used = %q, want %q", got, "500m")
+	}
+	if got := getNodeResourceUsed(node, corev1.ResourceMemory); got != "2Gi" {
+		t.Fatalf("memory used = %q, want %q", got, "2Gi")
+	}
+	if got := getNodeResourceUsed(node, corev1.ResourcePods); got != "10" {
+		t.Fatalf("pods used = %q, want %q", got, "10")
+	}
+	if got := getNodeResourceUsed(node, corev1.ResourceEphemeralStorage); got != "-" {
+		t.Fatalf("missing resource used = %q, want %q", got, "-")
+	}
+}

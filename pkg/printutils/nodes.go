@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/jordiprats/kubectl-eks/pkg/data"
+	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/printers"
 )
@@ -27,18 +28,19 @@ func PrintMultiClusterNodes(noHeaders bool, wide bool, nodes []data.ClusterNodeI
 			{Name: "INSTANCE TYPE", Type: "string"},
 			{Name: "COMPUTE", Type: "string"},
 			{Name: "MANAGED BY", Type: "string"},
-			{Name: "AGE", Type: "string"},
 		},
 	}
 
 	if wide {
 		table.ColumnDefinitions = append(table.ColumnDefinitions,
-			v1.TableColumnDefinition{Name: "CPU", Type: "string"},
-			v1.TableColumnDefinition{Name: "MEMORY", Type: "string"},
+			v1.TableColumnDefinition{Name: "CPU USED/TOTAL (REM)", Type: "string"},
+			v1.TableColumnDefinition{Name: "MEMORY USED/TOTAL (REM)", Type: "string"},
 			v1.TableColumnDefinition{Name: "PODS", Type: "string"},
-			v1.TableColumnDefinition{Name: "NODE CONDITIONS", Type: "string"},
+			v1.TableColumnDefinition{Name: "CONDITIONS", Type: "string"},
 		)
 	}
+
+	table.ColumnDefinitions = append(table.ColumnDefinitions, v1.TableColumnDefinition{Name: "AGE", Type: "string"})
 
 	for _, n := range nodes {
 		cells := []interface{}{
@@ -50,17 +52,18 @@ func PrintMultiClusterNodes(noHeaders bool, wide bool, nodes []data.ClusterNodeI
 			n.Node.InstanceType,
 			n.Node.Compute,
 			n.Node.ManagedBy,
-			formatAge(n.Node.Created),
 		}
 
 		if wide {
 			cells = append(cells,
-				formatCapacityAllocatable(n.Node.CPUCapacity, n.Node.CPUAllocatable),
-				formatCapacityAllocatable(n.Node.MemoryCapacity, n.Node.MemoryAllocatable),
-				formatCapacityAllocatable(n.Node.PodsCapacity, n.Node.PodsAllocatable),
+				formatCPUUsedTotalRemaining(n.Node.CPUUsed, n.Node.CPUCapacity, n.Node.CPUAllocatable),
+				formatMemoryUsedTotalRemaining(n.Node.MemoryUsed, n.Node.MemoryCapacity, n.Node.MemoryAllocatable),
+				n.Node.PodsCapacity,
 				formatNodeConditions(n.Node),
 			)
 		}
+
+		cells = append(cells, formatAge(n.Node.Created))
 
 		table.Rows = append(table.Rows, v1.TableRow{Cells: cells})
 	}
@@ -95,6 +98,56 @@ func formatNodeConditions(node data.NodeInfo) string {
 	return strings.Join(conditions, ",")
 }
 
-func formatCapacityAllocatable(capacity, allocatable string) string {
-	return fmt.Sprintf("%s/%s", capacity, allocatable)
+func formatUsedTotal(used, total string) string {
+	return fmt.Sprintf("%s/%s", used, total)
+}
+
+func formatUsedTotalRemaining(used, total, remaining string) string {
+	return fmt.Sprintf("%s/%s (%s)", used, total, remaining)
+}
+
+func formatCPUUsedTotalRemaining(used, total, remaining string) string {
+	return fmt.Sprintf("%s/%s (%s)", formatCPUQuantityCores(used), formatCPUQuantityCores(total), formatCPUQuantityCores(remaining))
+}
+
+func formatMemoryUsedTotalRemaining(used, total, remaining string) string {
+	return fmt.Sprintf("%s/%s (%s)", formatMemoryQuantityGi(used), formatMemoryQuantityGi(total), formatMemoryQuantityGi(remaining))
+}
+
+func formatCPUQuantityCores(value string) string {
+	if value == "-" {
+		return value
+	}
+
+	q, err := resource.ParseQuantity(value)
+	if err != nil {
+		return value
+	}
+
+	cores := float64(q.MilliValue()) / 1000.0
+	formatted := fmt.Sprintf("%.1f", cores)
+	if strings.HasSuffix(formatted, ".0") {
+		return strings.TrimSuffix(formatted, ".0")
+	}
+
+	return formatted
+}
+
+func formatMemoryQuantityGi(value string) string {
+	if value == "-" {
+		return value
+	}
+
+	q, err := resource.ParseQuantity(value)
+	if err != nil {
+		return value
+	}
+
+	gi := q.AsApproximateFloat64() / (1024 * 1024 * 1024)
+	formatted := fmt.Sprintf("%.1fGi", gi)
+	if strings.HasSuffix(formatted, ".0Gi") {
+		return strings.TrimSuffix(formatted, ".0Gi") + "Gi"
+	}
+
+	return formatted
 }
