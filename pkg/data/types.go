@@ -24,12 +24,16 @@ type ClusterNodeInfo struct {
 }
 
 type NodeInfo struct {
-	Name         string
-	InstanceType string
-	Compute      string
-	ManagedBy    string
-	Created      time.Time
-	Status       string
+	Name               string
+	InstanceType       string
+	Compute            string
+	ManagedBy          string
+	Created            time.Time
+	Status             string
+	MemoryPressure     string
+	DiskPressure       string
+	PIDPressure        string
+	NetworkUnavailable string
 }
 
 type KubeCtlEksCache struct {

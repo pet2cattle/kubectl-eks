@@ -68,3 +68,28 @@ func TestGetNodeStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestGetNodeConditionStatus(t *testing.T) {
+	node := corev1.Node{
+		Status: corev1.NodeStatus{
+			Conditions: []corev1.NodeCondition{
+				{Type: corev1.NodeMemoryPressure, Status: corev1.ConditionFalse},
+				{Type: corev1.NodeDiskPressure, Status: corev1.ConditionTrue},
+				{Type: corev1.NodePIDPressure, Status: corev1.ConditionUnknown},
+			},
+		},
+	}
+
+	if got := getNodeConditionStatus(node, corev1.NodeMemoryPressure); got != "False" {
+		t.Fatalf("memory pressure = %q, want %q", got, "False")
+	}
+	if got := getNodeConditionStatus(node, corev1.NodeDiskPressure); got != "True" {
+		t.Fatalf("disk pressure = %q, want %q", got, "True")
+	}
+	if got := getNodeConditionStatus(node, corev1.NodePIDPressure); got != "Unknown" {
+		t.Fatalf("pid pressure = %q, want %q", got, "Unknown")
+	}
+	if got := getNodeConditionStatus(node, corev1.NodeNetworkUnavailable); got != "Unknown" {
+		t.Fatalf("network unavailable = %q, want %q", got, "Unknown")
+	}
+}

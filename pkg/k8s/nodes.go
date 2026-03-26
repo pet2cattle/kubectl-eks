@@ -64,12 +64,16 @@ func GetNodesWithConfig(restConfig *rest.Config) ([]data.NodeInfo, error) {
 		status := getNodeStatus(node)
 
 		nodeList = append(nodeList, data.NodeInfo{
-			Name:         node.Name,
-			InstanceType: instanceType,
-			Compute:      compute,
-			ManagedBy:    managedBy,
-			Created:      node.CreationTimestamp.Time,
-			Status:       status,
+			Name:               node.Name,
+			InstanceType:       instanceType,
+			Compute:            compute,
+			ManagedBy:          managedBy,
+			Created:            node.CreationTimestamp.Time,
+			Status:             status,
+			MemoryPressure:     getNodeConditionStatus(node, corev1.NodeMemoryPressure),
+			DiskPressure:       getNodeConditionStatus(node, corev1.NodeDiskPressure),
+			PIDPressure:        getNodeConditionStatus(node, corev1.NodePIDPressure),
+			NetworkUnavailable: getNodeConditionStatus(node, corev1.NodeNetworkUnavailable),
 		})
 	}
 
@@ -126,12 +130,16 @@ func GetNodes(configFlags *genericclioptions.ConfigFlags) ([]data.NodeInfo, erro
 		status := getNodeStatus(node)
 
 		nodeList = append(nodeList, data.NodeInfo{
-			Name:         node.Name,
-			InstanceType: instanceType,
-			Compute:      compute,
-			ManagedBy:    managedBy,
-			Created:      node.CreationTimestamp.Time,
-			Status:       status,
+			Name:               node.Name,
+			InstanceType:       instanceType,
+			Compute:            compute,
+			ManagedBy:          managedBy,
+			Created:            node.CreationTimestamp.Time,
+			Status:             status,
+			MemoryPressure:     getNodeConditionStatus(node, corev1.NodeMemoryPressure),
+			DiskPressure:       getNodeConditionStatus(node, corev1.NodeDiskPressure),
+			PIDPressure:        getNodeConditionStatus(node, corev1.NodePIDPressure),
+			NetworkUnavailable: getNodeConditionStatus(node, corev1.NodeNetworkUnavailable),
 		})
 	}
 
@@ -156,4 +164,14 @@ func getNodeStatus(node corev1.Node) string {
 	}
 
 	return status
+}
+
+func getNodeConditionStatus(node corev1.Node, conditionType corev1.NodeConditionType) string {
+	for _, cond := range node.Status.Conditions {
+		if cond.Type == conditionType {
+			return string(cond.Status)
+		}
+	}
+
+	return "Unknown"
 }

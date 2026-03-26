@@ -27,6 +27,9 @@ Without filters, queries the current cluster context.`,
 	Example: `  # List nodes for current cluster
   kubectl eks nodes
 
+	# List nodes for current cluster with pressure indicators
+	kubectl eks nodes -o wide
+
   # List nodes across clusters matching filter
   kubectl eks nodes --name-contains prod
 
@@ -38,6 +41,7 @@ Without filters, queries the current cluster context.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		noHeaders, _ := cmd.Flags().GetBool("no-headers")
 		refresh, _ := cmd.Flags().GetBool("refresh")
+		output, _ := cmd.Flags().GetString("output")
 
 		// Get filter flags
 		profile, _ := cmd.Flags().GetString("profile")
@@ -71,7 +75,7 @@ Without filters, queries the current cluster context.`,
 			if err != nil {
 				log.Fatalf("Error loading cluster list: %v", err)
 			}
-			runMultiClusterNodes(clusterList, noHeaders, false)
+			runMultiClusterNodes(clusterList, noHeaders, output == "wide", false)
 		} else {
 			// No filters - use current context directly
 			clusterInfo, err := GetCurrentClusterInfo()
@@ -79,12 +83,12 @@ Without filters, queries the current cluster context.`,
 				log.Fatalf("Error getting current cluster info: %v", err)
 			}
 			clusterList = []data.ClusterInfo{clusterInfo}
-			runMultiClusterNodes(clusterList, noHeaders, true)
+			runMultiClusterNodes(clusterList, noHeaders, output == "wide", true)
 		}
 	},
 }
 
-func runMultiClusterNodes(clusterList []data.ClusterInfo, noHeaders bool, skipContextSwitch bool) {
+func runMultiClusterNodes(clusterList []data.ClusterInfo, noHeaders bool, wide bool, skipContextSwitch bool) {
 	if len(clusterList) == 0 {
 		fmt.Println("No clusters found matching the specified filters")
 		return
@@ -143,7 +147,7 @@ func runMultiClusterNodes(clusterList []data.ClusterInfo, noHeaders bool, skipCo
 		}
 	}
 
-	printutils.PrintMultiClusterNodes(noHeaders, allNodes)
+	printutils.PrintMultiClusterNodes(noHeaders, wide, allNodes)
 
 	saveCacheToDisk()
 }
@@ -156,6 +160,7 @@ func init() {
 	nodesCmd.Flags().StringP("name-not-contains", "x", "", "Cluster name does not contain string")
 	nodesCmd.Flags().StringP("region", "r", "", "AWS region to use")
 	nodesCmd.Flags().StringP("version", "v", "", "Filter by EKS version")
+	nodesCmd.Flags().StringP("output", "o", "", "Output format: wide")
 
 	rootCmd.AddCommand(nodesCmd)
 }
